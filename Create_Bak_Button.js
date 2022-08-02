@@ -1,6 +1,6 @@
 // Button that creates '.bak' backups for any number of selected files. If a .bak already exists for a file, it will create .bak2, .bak3 and so on.
 // By ThioJoe
-// Updated: 7/26/22 (First Version)
+// Updated: 8/1/22
 
 function OnClick(clickData) {
 	// You can change the backup extension base string to be whatever you want here. Must include period.
@@ -59,12 +59,12 @@ function OnClick(clickData) {
 		
 		// If there is no already existing .bak or .bak# of the selected file, create them
 		if (lastBakNum == 0) {
-			commandString = 'Copy "' + selectedFile + '" AS *' + backupExtension + ' HERE'
+			commandString = 'Copy DUPLICATE "' + selectedFile + '" AS *' + backupExtension;
 			clickData.func.command.RunCommand(commandString);
 		}
 		else {
 			newBakNum = lastBakNum + 1;
-			commandString = 'Copy "' + selectedFile + '" AS *' + backupExtension + newBakNum + ' HERE';
+			commandString = 'Copy DUPLICATE "' + selectedFile + '" AS *' + backupExtension + newBakNum;
 			clickData.func.command.RunCommand(commandString);
 		}
 	}
