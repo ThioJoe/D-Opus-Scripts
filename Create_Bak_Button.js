@@ -1,85 +1,104 @@
-// Button that creates '.bak' backups for any number of selected files. If a .bak already exists for a file, it will create .bak2, .bak3 and so on.
+// Button that creates '.bak' backups for any number of selected files or folders. If a .bak already exists for an item, it will create .bak2, .bak3 and so on.
 // By ThioJoe
-// Updated: 8/1/22
+// Updated: 5/21/24
 
 function OnClick(clickData) {
 	// You can change the backup extension base string to be whatever you want here. Must include period.
 	// Default = '.bak'
-	backupExtension = '.bak'
+	var backupExtension = '.bak';
 	////////////////////////////////////////////////////////////////////////
 
-	function createBak(fileItem) {
-		lastBakNum = 0;
-		// Create item object of selected file
-		selectedFile = fileItem;
-		//Get name of selected file
-		selectedFileFullName = String(selectedFile.name);
-		selectedFileExt = String(selectedFile.ext);
-		selectedFileNameStem = String(selectedFile.name_stem);
-		
-		//Go through filenames in folder, if any contains fileFullName.bak, check if # at end is larger than current, if so record into lastBakNum
-		enumFiles.moveFirst();
-		while (enumFiles.atEnd() == false) {
-			currentFileName = String(enumFiles.item().name)
-			currentFileNameExt = String(enumFiles.item().ext)
-				
-			// Checks if stem of currently scanned file is same as selected file with .bak added
-			theoreticalBakName = selectedFileFullName + backupExtension;
-			theoreticalBakNameLength = theoreticalBakName.length;
-			
-			//Checking if the currently scanned file is already a .bak file of the selected file
-			//By checking if scanned file contains selected file name + bak, from beginning
-			if (currentFileName.substr(0, theoreticalBakNameLength) == theoreticalBakName) {
-				//Checks if extension is .bak or .bak*
-				if (currentFileNameExt.substr(0,backupExtensionLength) == backupExtension) {
-					// If existing backup file extension is exactly .bak with nothing after, set lastBakNum to 1, so next one will be .bak2, not .bak1 (.bak1 could be  with .bak)
-					if (currentFileNameExt == backupExtension) {
-						if (lastBakNum == 0) {
-							lastBakNum = 1;
-						}
-					} 
-					// If it starts with .bak but has something after .bak
-					else {
-						// Gets text or number after ".bak", which should be a number
-						extEnding = currentFileNameExt.substr(backupExtensionLength);
-						//Checks if anything after .bak is not a number
-						if (isNaN(extEnding) == false) {
-							// Parse the ending number into an integer in base 10
-							extEndingNum = parseInt(extEnding, 10);
-							// Only update lastBakNum if it is the largest .bak # found so far
-							if (extEndingNum > lastBakNum) {
-								lastBakNum = extEndingNum;
-							}
+	function createBak(item) {
+		var lastBakNum = 0;
+		// Create item object of selected file or folder
+		var selectedItem = item;
+		// Get name of selected file or folder
+		var selectedItemFullName = String(selectedItem.name);
+		var selectedItemExt = String(selectedItem.ext);
+		var selectedItemNameStem = String(selectedItem.name_stem);
+
+		//DOpus.Output("Processing: " + selectedItemFullName);
+
+		// Create a FileSystemObject
+		var fso = new ActiveXObject("Scripting.FileSystemObject");
+		// Get the parent folder of the selected item
+		var parentFolder = fso.GetFolder(clickData.func.sourcetab.path);
+		var files = new Enumerator(parentFolder.Files);
+		var subfolders = new Enumerator(parentFolder.SubFolders);
+
+		// Combine files and folders into a single array
+		var items = [];
+		while (!files.atEnd()) {
+			items.push(files.item());
+			files.moveNext();
+		}
+		while (!subfolders.atEnd()) {
+			items.push(subfolders.item());
+			subfolders.moveNext();
+		}
+
+		// Go through filenames in folder, if any contains itemFullName.bak, check if # at end is larger than current, if so record into lastBakNum
+		for (var i = 0; i < items.length; i++) {
+			var currentItem = items[i];
+			var currentItemName = String(currentItem.Name);
+
+			//DOpus.Output("Checking existing item: " + currentItemName);
+
+			// Checks if stem of currently scanned item is same as selected item with .bak added
+			var theoreticalBakName = selectedItemFullName + backupExtension;
+			var theoreticalBakNameLength = theoreticalBakName.length;
+
+			// Checking if the currently scanned item is already a .bak item of the selected item or folder
+			// By checking if scanned item contains selected item name + bak, from beginning
+			if (currentItemName.substr(0, theoreticalBakNameLength) == theoreticalBakName) {
+				//DOpus.Output("Found backup match: " + currentItemName);
+
+				// Checks if extension is .bak or .bak*
+				if (currentItemName.length == theoreticalBakNameLength) {
+					if (lastBakNum == 0) {
+						lastBakNum = 1;
+					}
+					//DOpus.Output("Setting lastBakNum to 1");
+				} else {
+					// Gets text or number after ".bak", which should be a number
+					var extEnding = currentItemName.substr(theoreticalBakNameLength);
+					// Checks if anything after .bak is not a number
+					if (!isNaN(extEnding)) {
+						// Parse the ending number into an integer in base 10
+						var extEndingNum = parseInt(extEnding, 10);
+						// Only update lastBakNum if it is the largest .bak # found so far
+						if (extEndingNum > lastBakNum) {
+							lastBakNum = extEndingNum;
+							//DOpus.Output("Updating lastBakNum to: " + lastBakNum);
 						}
 					}
 				}
 			}
-			enumFiles.moveNext();
 		}
-		
-		// If there is no already existing .bak or .bak# of the selected file, create them
+
+		// If there is no already existing .bak or .bak# of the selected item, create them
+		var commandString;
 		if (lastBakNum == 0) {
-			commandString = 'Copy DUPLICATE "' + selectedFile + '" AS *' + backupExtension;
+			commandString = 'Copy DUPLICATE "' + selectedItem + '" AS *' + backupExtension;
+			//DOpus.Output("Running command: " + commandString);
 			clickData.func.command.RunCommand(commandString);
-		}
-		else {
-			newBakNum = lastBakNum + 1;
-			commandString = 'Copy DUPLICATE "' + selectedFile + '" AS *' + backupExtension + newBakNum;
+		} else {
+			var newBakNum = lastBakNum + 1;
+			commandString = 'Copy DUPLICATE "' + selectedItem + '" AS *' + backupExtension + newBakNum;
+			//DOpus.Output("Running command: " + commandString);
 			clickData.func.command.RunCommand(commandString);
 		}
 	}
-	
-	// Get data about selected files, and rest of the files in the folder
-	allSelectedFiles = clickData.func.sourcetab.selected_files;
-	enumSelectedFiles = new Enumerator(allSelectedFiles);
-	enumFiles = new Enumerator(clickData.func.sourcetab.files);  //Enumerate all files in folder. Does this before any bak files are created to save unecessary checking later
-	backupExtensionLength = backupExtension.length;
 
-	// Runs the main function for each selected file
-	enumSelectedFiles.moveFirst();
-	while (enumSelectedFiles.atEnd() == false) {
-		currentFile = enumSelectedFiles.item()
-		createBak(currentFile);
-		enumSelectedFiles.moveNext();
+	// Get data about selected items
+	var allSelectedItems = clickData.func.sourcetab.selected;
+	var enumSelectedItems = new Enumerator(allSelectedItems);
+
+	// Runs the main function for each selected item
+	enumSelectedItems.moveFirst();
+	while (!enumSelectedItems.atEnd()) {
+		var currentItem = enumSelectedItems.item();
+		createBak(currentItem);
+		enumSelectedItems.moveNext();
 	}
 }
