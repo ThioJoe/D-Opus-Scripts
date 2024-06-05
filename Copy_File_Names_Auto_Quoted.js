@@ -1,6 +1,7 @@
 // Copies files or folders names to clipboard with quotes around it if it has spaces. Various optional behavior for multiple selected items
 // By ThioJoe
 // Updated: 6/5/24 (First Version)
+// For Latest Version: https://github.com/ThioJoe/D-Opus-Scripts/blob/main/Copy_File_Names_Auto_Quoted.js
 
 function OnClick(clickData) {
     //------------ Options ------------
