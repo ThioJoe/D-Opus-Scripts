@@ -2,11 +2,14 @@
 // By ThioJoe
 // Updated: 6/13/24
 
+// Discussion Thread / Latest Version: https://resource.dopus.com/t/scripts-to-copy-file-folder-name-s-or-path-s-with-automatic-surrounding-quotes-based-on-spaces/51122
+// Updates also available on my GitHub repo: https://github.com/ThioJoe/D-Opus-Scripts
+
 //   Arguments Template (Must put this in the 'Template' box in the command editor to use arguments):
-//   MULTILINE_QUOTE_MODE/O,NO_SINGLE_ITEM_QUOTES/O/S,FOLDER_TERMINATOR/O
+//   MULTILINE_QUOTE_MODE/O,SINGLE_ITEM_QUOTE_MODE/O,FOLDER_TERMINATOR/O
 
 //   Example usage of arguments:
-//   Copy_File_Paths_Auto_Quoted MULTILINE_QUOTE_MODE="never" NO_SINGLE_ITEM_QUOTES FOLDER_TERMINATOR="\"
+//   Copy_File_Paths_Auto_Quoted MULTILINE_QUOTE_MODE="never" SINGLE_ITEM_QUOTE_MODE="auto" FOLDER_TERMINATOR="\"
 
 function OnClick(clickData) {
     //------------ Options (Note: If arguments are used when calling the script, these values will be overrided by the arguments) ------------
@@ -18,9 +21,9 @@ function OnClick(clickData) {
     // Just set to empty string if none wanted. Don't forget to escape as necessary (to add a backslash would be like: "\\")
     // >  Optional Argument Name: FOLDER_TERMINATOR (string value)
     var includeTrailingTerminator = "";
-    // forceNoSingleItemQuotes: If true, won't put quotes around a file path even if there are spaces. Only applies when ony a single item is selected.
-    // >  Optional Argument Name: NO_SINGLE_ITEM_QUOTES (Switch, no value needed)
-    var forceNoSingleItemQuotes = false;
+    // singleItemQuoteMode: Affects how quotes are added to each file name when a single file/folder is selected
+    // >  Optional Argument Name: SINGLE_ITEM_QUOTE_MODE (string value)
+    var singleItemQuoteMode = "auto";
     //---------------------------------
     
     var tab = clickData.func.sourcetab;
@@ -30,10 +33,16 @@ function OnClick(clickData) {
         return; // No files selected, nothing to do.
     }
 
-     // Parse optional arguments if they're there
-    if (clickData.func.args.got_arg.NO_SINGLE_ITEM_QUOTES) {
-        forceNoSingleItemQuotes = true;
-        //DOpus.Output("Received NO_SINGLE_ITEM_QUOTES argument");
+    if (clickData.func.args.got_arg.SINGLE_ITEM_QUOTE_MODE) {
+        //Validate argument value
+        argString = clickData.func.args.SINGLE_ITEM_QUOTE_MODE.toLowerCase();
+        if (argString == "never" || argString == "always" || argString == "auto") {
+            singleItemQuoteMode = argString;
+        } else {
+            singleItemQuoteMode = "auto";
+            DOpus.Output("ERROR: Invalid SINGLE_ITEM_QUOTE_MODE argument. Must be either 'never', 'always', or 'auto'. Got: " + argString);
+        }
+        //DOpus.Output("Received SINGLE_ITEM_QUOTE_MODE argument: " + String(clickData.func.args.SINGLE_ITEM_QUOTE_MODE));
     }
 
     if (clickData.func.args.got_arg.MULTILINE_QUOTE_MODE) {
@@ -61,12 +70,11 @@ function OnClick(clickData) {
         if (singleItem.is_dir) {
             filePath += includeTrailingTerminator;
         }
-        // If no spaces in the filename or argument given to not use quotes
-        if (filePath.indexOf(" ") == -1 || forceNoSingleItemQuotes == true) {
-            // No spaces in the file path
+        // If no spaces in the file path or option set to not use quotes
+        if (singleItemQuoteMode != "always" && (filePath.indexOf(" ") == -1 || singleItemQuoteMode == "never")) {
             clipboardText = filePath;
         } else {
-            // File path contains spaces
+            // File path contains spaces or option set to always use quotes
             clipboardText = '"' + filePath + '"';
         }
     } else {

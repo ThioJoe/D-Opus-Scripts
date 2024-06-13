@@ -2,11 +2,14 @@
 // By ThioJoe
 // Updated: 6/13/24
 
+// Discussion Thread / Latest Version: https://resource.dopus.com/t/scripts-to-copy-file-folder-name-s-or-path-s-with-automatic-surrounding-quotes-based-on-spaces/51122
+// Updates also available on my GitHub repo: https://github.com/ThioJoe/D-Opus-Scripts
+
 //   Arguments Template (Must put this in the 'Template' box in the command editor to use arguments):
-//   MULTILINE_QUOTE_MODE/O,NO_SINGLE_ITEM_QUOTES/O/S
+//   MULTILINE_QUOTE_MODE/O,SINGLE_ITEM_QUOTE_MODE/O
 
 //   Example usage of arguments:
-//   Copy_File_Names_Auto_Quoted MULTILINE_QUOTE_MODE="never" NO_SINGLE_ITEM_QUOTES
+//   Copy_File_Names_Auto_Quoted MULTILINE_QUOTE_MODE="never" SINGLE_ITEM_QUOTE_MODE="auto"
 
 function OnClick(clickData) {
     //------------ Options (Note: If arguments are used when calling the script, these values will be overrided by the arguments)  ------------
@@ -14,9 +17,9 @@ function OnClick(clickData) {
     // Set to 'never' to never add quotes when multiple selected. 'always' to add to all lines. 'auto' to add for lines with spaces in file name
     // >  Optional Argument Name: MULTILINE_QUOTE_MODE (string value)
     var multiLineQuoteMode = "never";
-    // forceNoSingleItemQuotes: If true, won't put quotes around a file name even if there are spaces. Only applies when ony a single item is selected.
-    // >  Optional Argument Name: NO_SINGLE_ITEM_QUOTES (Switch, no value needed)
-    var forceNoSingleItemQuotes = false;
+    // singleItemQuoteMode: Affects how quotes are added to each file name when a single file/folder is selected
+    // >  Optional Argument Name: SINGLE_ITEM_QUOTE_MODE (string value)
+    var singleItemQuoteMode = "auto";
     //---------------------------------
     
     var tab = clickData.func.sourcetab;
@@ -26,10 +29,16 @@ function OnClick(clickData) {
         return; // No files selected, nothing to do.
     }
 
-    // Parse optional arguments if they're there
-    if (clickData.func.args.got_arg.NO_SINGLE_ITEM_QUOTES) {
-        forceNoSingleItemQuotes = true;
-        //DOpus.Output("Received NO_SINGLE_ITEM_QUOTES argument");
+    if (clickData.func.args.got_arg.SINGLE_ITEM_QUOTE_MODE) {
+        //Validate argument value
+        argString = clickData.func.args.SINGLE_ITEM_QUOTE_MODE.toLowerCase();
+        if (argString == "never" || argString == "always" || argString == "auto") {
+            singleItemQuoteMode = argString;
+        } else {
+            singleItemQuoteMode = "auto";
+            DOpus.Output("ERROR: Invalid SINGLE_ITEM_QUOTE_MODE argument. Must be either 'never', 'always', or 'auto'. Got: " + argString);
+        }
+        //DOpus.Output("Received SINGLE_ITEM_QUOTE_MODE argument: " + String(clickData.func.args.SINGLE_ITEM_QUOTE_MODE));
     }
 
     if (clickData.func.args.got_arg.MULTILINE_QUOTE_MODE) {
@@ -48,11 +57,11 @@ function OnClick(clickData) {
     // If single item is selected
     if (selectedItems.count == 1) {
         var singleItem = selectedItems(0);
-        // If no spaces in the filename or argument given to not use quotes
-        if (singleItem.name.indexOf(" ") == -1 || forceNoSingleItemQuotes == true) {
+        // If no spaces in the filename or option set to not use quotes
+        if (singleItemQuoteMode != "always" && (singleItem.name.indexOf(" ") == -1 || singleItemQuoteMode == "never")) {
             clipboardText = singleItem.name;
         } else {
-            // Filename contains spaces
+            // Filename contains spaces or option set to always use quotes
             clipboardText = '"' + singleItem.name + '"';
         }
     // Multiple files are selected
