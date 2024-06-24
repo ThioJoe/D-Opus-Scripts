@@ -31,16 +31,16 @@ function OnInit(initData)
     initData.config_desc("Signature_Valid_Message") = "String to display for files that are signed with valid certificate.";
     initData.config.Signature_Valid_Message = "✔️ Signed";
     
-    initData.config_desc("Signature_Invalid_Message") = "String to display for files that are signed with invalid/untrusted certificate.";
+    initData.config_desc("Signature_Invalid_Message") = "(FastSigCheck Only) String to display for files that are signed with invalid/untrusted certificate.";
     initData.config.Signature_Invalid_Message = "⚠️ Invalid";
     
-    initData.config_desc("Signature_NoSignature_Message") = "String to display for files that have no signature.";
+    initData.config_desc("Signature_NoSignature_Message") = "String to display for files that have no signature. Note: When using signtool, this message will apply for ALL results that are not a valid signature - even any errors.";
     initData.config.Signature_NoSignature_Message = "";
     
-    initData.config_desc("Signature_UnsupportedType_Message") = "String to display for files that have unsupported types for signature check.";
+    initData.config_desc("Signature_UnsupportedType_Message") = "(FastSigCheck Only) String to display for files that have unsupported types for signature check.";
     initData.config.Signature_UnsupportedType_Message = "";
     
-    initData.config_desc("Signature_Error_Message") = "String to display for files that encounter an error during signature check.";
+    initData.config_desc("Signature_Error_Message") = "(FastSigCheck Only) String to display for files that encounter an error during signature check.";
     initData.config.Signature_Error_Message = "Error";
 
     initData.config_desc("Text_Align") = "Align text in column to left, center, or right. Note: You might need to disable & re-enable the script for this to take effect.";
