@@ -1,7 +1,7 @@
 function OnInit(initData)
 {
     initData.name = "Verify File Signatures";
-    initData.version = "1.0";
+    initData.version = "1.1";
     initData.copyright = "(c) 2024";
     initData.desc = "Column to check if file signature is valid using FastSigCheck or SignTool";
     initData.default_enable = true;
@@ -43,6 +43,9 @@ function OnInit(initData)
     initData.config_desc("Signature_Error_Message") = "String to display for files that encounter an error during signature check.";
     initData.config.Signature_Error_Message = "Error";
 
+    initData.config_desc("Text_Align") = "Align text in column to left, center, or right. Note: You might need to disable & re-enable the script for this to take effect.";
+    initData.config.Text_Align = DOpus.Create.Vector(0,"Left", "Center", "Right");
+
     // Supported File Extensions
     initData.config_desc("Supported_File_Extensions") = "List of supported file extensions";
     initData.config.Supported_File_Extensions = DOpus.Create.Vector(
@@ -68,6 +71,7 @@ function OnInit(initData)
     initData.config_groups("Signature_Error_Message") = "Custom Column Messages";
     initData.config_groups("Supported_File_Extensions") = "Tool Settings";
     initData.config_groups("Use_File_Types_List") = "Tool Settings";
+    initData.config_groups("Text_Align") = "Tool Settings";
 }
 
 function OnAddColumns(addColData)
@@ -83,11 +87,26 @@ function AddColumn(addColData, colName, colLabel, checkType)
     col.header = 'Signature';
     col.method = "OnColumns";
     col.multicol = false;
-    col.justify = "left";
     col.autogroup = true;
     col.autorefresh = true;
     col.userdata = checkType;
     col.namerefresh = true; // Refresh the name after each change
+    
+    switch (Script.config.Text_Align)
+    {
+        case 0:
+            col.justify = "left";
+            break;
+        case 1:
+            col.justify = "center";
+            break;
+        case 2:
+            col.justify = "right";
+            break;
+        default:
+            col.justify = "left"; // Default to left if configuration is not set correctly
+            break;
+    }
 }
 
 function OnColumns(scriptColData)
