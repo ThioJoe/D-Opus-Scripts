@@ -1,7 +1,7 @@
 function OnInit(initData)
 {
     initData.name = "Verify File Signatures";
-    initData.version = "1.1";
+    initData.version = "1.2";
     initData.copyright = "(c) 2024";
     initData.desc = "Column to check if file signature is valid using FastSigCheck or SignTool";
     initData.default_enable = true;
