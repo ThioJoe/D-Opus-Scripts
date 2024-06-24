@@ -12,7 +12,7 @@ function OnInit(initData)
     initData.config_groups = DOpus.Create().Map();
 
     // Configuration for exeToolPath
-    initData.config_desc("Exe_Tool_Path") = "Full path to the executable (FastSigCheck.exe or SignTool.exe)";
+    initData.config_desc("Exe_Tool_Path") = "Full path to the executable (FastSigCheck.exe or SignTool.exe). If the exe is already in the PATH environment variable, you can just put the exe name without the full path.";
     initData.config.Exe_Tool_Path = "C:\\Path\\To\\Tool.exe";
 
     // Configuration for tool choice
@@ -45,6 +45,9 @@ function OnInit(initData)
 
     initData.config_desc("Text_Align") = "Align text in column to left, center, or right. Note: You might need to disable & re-enable the script for this to take effect.";
     initData.config.Text_Align = DOpus.Create.Vector(0,"Left", "Center", "Right");
+    
+    initData.config_desc("Signtool_Arguments") = "Arguments to use with the 'signtool verify' command. Run 'signtool verify' to see the options. /pa is recommended because otherwise it will default to a stricter policy that really only applies to drivers and would think everything is not properly signed. /q minimizes output, which is not necessary because this script can't receive the output anyway, just the exit codes. To also check catalog signatures you can add /a , but it will take a lot longer. If checking catalog signatures you might want to edit the supported file types list to include file types expected to be signed that way, because any type of file can be signed via catalog.";
+    initData.config.Signtool_Arguments = "/pa /q";
 
     // Supported File Extensions
     initData.config_desc("Supported_File_Extensions") = "List of supported file extensions";
@@ -61,17 +64,22 @@ function OnInit(initData)
     );
 
     // Group the configuration settings
-    initData.config_groups("Exe_Tool_Path") = "Tool Settings";
-    initData.config_groups("Tool_Choice") = "Tool Settings";
-    initData.config_groups("Enable_Debug") = "Tool Settings";
-    initData.config_groups("Signature_Valid_Message") = "Custom Column Messages";
-    initData.config_groups("Signature_Invalid_Message") = "Custom Column Messages";
-    initData.config_groups("Signature_NoSignature_Message") = "Custom Column Messages";
-    initData.config_groups("Signature_UnsupportedType_Message") = "Custom Column Messages";
-    initData.config_groups("Signature_Error_Message") = "Custom Column Messages";
-    initData.config_groups("Supported_File_Extensions") = "Tool Settings";
-    initData.config_groups("Use_File_Types_List") = "Tool Settings";
-    initData.config_groups("Text_Align") = "Tool Settings";
+    initData.config_groups("Exe_Tool_Path") = "1 - Tool Settings";
+    initData.config_groups("Tool_Choice") = "1 - Tool Settings";
+    initData.config_groups("Signtool_Arguments") = "1 - Tool Settings";
+    
+    initData.config_groups("Supported_File_Extensions") = "2 - File Options";
+    initData.config_groups("Use_File_Types_List") = "2 - File Options";
+    
+    initData.config_groups("Signature_Valid_Message") = "3 - Custom Column Messages";
+    initData.config_groups("Signature_Invalid_Message") = "3 - Custom Column Messages";
+    initData.config_groups("Signature_NoSignature_Message") = "3 - Custom Column Messages";
+    initData.config_groups("Signature_UnsupportedType_Message") = "3 - Custom Column Messages";
+    initData.config_groups("Signature_Error_Message") = "3 - Custom Column Messages";
+    
+    initData.config_groups("Enable_Debug") = "4 - Other Options";
+    initData.config_groups("Text_Align") = "4 - Other Options";
+
 }
 
 function OnAddColumns(addColData)
@@ -133,12 +141,15 @@ function OnColumns(scriptColData)
 
         var toolChoiceIndex = Script.config.Tool_Choice;
         var exeToolPath = Script.config.Exe_Tool_Path;
+        var signtool_args = Script.config.Signtool_Arguments;
         var cmd;
-
+        
+        //If using FastSigCheck.exe
         if (toolChoiceIndex === 1) {
             cmd = '"' + exeToolPath + '" "' + item.realpath + '"';
+        //If using signtool.exe
         } else if (toolChoiceIndex === 0) {
-            cmd = '"' + exeToolPath + '" verify /pa /q "' + item.realpath + '"';
+            cmd = '"' + exeToolPath + '" verify ' + signtool_args + ' "' + item.realpath + '"';
         } else {
             scriptColData.value = "Error: Invalid tool choice: " + toolChoice;
             return;
