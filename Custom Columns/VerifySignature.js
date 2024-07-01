@@ -2,7 +2,7 @@
 function OnInit(initData)
 {
     initData.name = "Verify File Signatures";
-    initData.version = "1.2";
+    initData.version = "1.2.1";
     initData.copyright = "(c) 2024";
     initData.desc = "Column to check if file signature is valid using FastSigCheck or SignTool";
     initData.default_enable = true;
@@ -155,7 +155,7 @@ function OnColumns(scriptColData)
         } else if (toolChoiceIndex === 0) {
             cmd = '"' + exeToolPath + '" verify ' + signtool_args + ' "' + item.realpath + '"';
         } else {
-            scriptColData.value = "Error: Invalid tool choice: " + toolChoice;
+            scriptColData.value = "Error: Invalid tool choice: " + toolChoiceIndex;
             return;
         }
 
