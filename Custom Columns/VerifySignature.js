@@ -1,3 +1,4 @@
+//1
 function OnInit(initData)
 {
     initData.name = "Verify File Signatures";
@@ -29,10 +30,10 @@ function OnInit(initData)
 
     // Custom Column Messages
     initData.config_desc("Signature_Valid_Message") = "String to display for files that are signed with valid certificate.";
-    initData.config.Signature_Valid_Message = "✔️ Signed";
+    initData.config.Signature_Valid_Message = "✔ Signed";
     
     initData.config_desc("Signature_Invalid_Message") = "(FastSigCheck Only) String to display for files that are signed with invalid/untrusted certificate.";
-    initData.config.Signature_Invalid_Message = "⚠️ Invalid";
+    initData.config.Signature_Invalid_Message = "⚠ Invalid";
     
     initData.config_desc("Signature_NoSignature_Message") = "String to display for files that have no signature. Note: When using signtool, this message will apply for ALL results that are not a valid signature - even any errors.";
     initData.config.Signature_NoSignature_Message = "";
@@ -82,11 +83,13 @@ function OnInit(initData)
 
 }
 
+// 2
 function OnAddColumns(addColData)
 {
     AddColumn(addColData, "VerifySignature", "Verify Signature", "verifysignature");
 }
 
+// 3
 function AddColumn(addColData, colName, colLabel, checkType)
 {
     var col = addColData.AddColumn();
@@ -117,6 +120,7 @@ function AddColumn(addColData, colName, colLabel, checkType)
     }
 }
 
+// 4
 function OnColumns(scriptColData)
 {
     try
