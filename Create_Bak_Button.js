@@ -1,4 +1,4 @@
-// Button that creates '.bak' backups for any number of selected files or folders. If a .bak already exists for an item, it will create .bak2, .bak3 and so on.
+// Button / User Command script that creates '.bak' backups for any number of selected files or folders. If a .bak already exists for an item, it will create .bak2, .bak3 and so on. Also has an argument option to restore a file.
 // By ThioJoe
 // Updated: 7/1/24
 
@@ -12,7 +12,7 @@ function OnClick(clickData) {
     ////////////////////////////////////////////////////////////////////////
     
     // With this set to true (or if argument is used), the highest numbered .bak for the selected file will replace the main file
-    // Optional Argument Name: RESTORE (Switch, no value needed)
+    // >  Optional Argument Name: RESTORE (Switch, no value needed)
     var doRestore = false;
 
     // -----------------------------------------------------------------------
