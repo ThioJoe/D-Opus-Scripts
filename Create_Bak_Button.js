@@ -1,17 +1,24 @@
 // Button / User Command script that creates '.bak' backups for any number of selected files or folders. If a .bak already exists for an item, it will create .bak2, .bak3 and so on. Also has an argument option to restore a file.
 // By ThioJoe
-// Updated: 7/1/24
+// Updated: 7/2/24
 
 //    Argument Template:    
-//    RESTORE/O/S
+//    RESTORE/O/S,BACKUP_EXTENSION/O
+
+//    Example usages of arguments:
+//       Make_bak BACKUP_EXTENSION=".bak"
+//       Make_bak RESTORE
+//       Make_bak BACKUP_EXTENSION=".backup" RESTORE
 
 function OnClick(clickData) {
     // You can change the backup extension base string to be whatever you want here. Must include period.
     // Default = '.bak'
+	// >  Optional Argument Name: BACKUP_EXTENSION (string value)
     var backupExtension = '.bak';
     ////////////////////////////////////////////////////////////////////////
     
     // With this set to true (or if argument is used), the highest numbered .bak for the selected file will replace the main file
+	// Note: Selected backup file to restore from must match the base backupExtension variable. (It's ok if it's numbered, for example if backupExtension is '.bak' you can still restore a '.bak4' file.
     // >  Optional Argument Name: RESTORE (Switch, no value needed)
     var doRestore = false;
 
@@ -21,6 +28,18 @@ function OnClick(clickData) {
     if (clickData.func.args.got_arg.RESTORE) {
         doRestore = true;
         //DOpus.Output("Received RESTORE switch argument");
+    }
+	
+	if (clickData.func.args.got_arg.BACKUP_EXTENSION) {
+        //Validate argument value
+        argString = String(clickData.func.args.BACKUP_EXTENSION);
+        if (argString.charAt(0) == ".") {
+            backupExtension = argString;
+        } else {
+            backupExtension = "." + argString;
+            DOpus.Output("WARNING: BACKUP_EXTENSION argument did not include a period so one was added. Got argument: " + argString);
+        }
+        //DOpus.Output("Received BACKUP_EXTENSION argument: " + String(clickData.func.args.BACKUP_EXTENSION));
     }
     
 
@@ -58,13 +77,14 @@ function OnClick(clickData) {
         
         // Determine the base name of the original file by removing the .bak or .bak# extension
         var originalFileName;
-        var baseNameRegex = /^(.+)\.bak(\d*)$/;
+        var baseNameRegex = new RegExp('^(.+)' + backupExtension.replace('.', '\\.') + '(\\d*)$');
+	    //DOpus.Output("baseNameRegex:  " + baseNameRegex);
         var match = selectedBakFullName.match(baseNameRegex);
         if (match) {
             originalFileName = match[1];
         } else {
             // Show error dialogue if the selected file is not a valid .bak file
-            DOpus.Dlg.Request("Error: The selected file is not a valid .bak file: \n" + selectedBakFullName, "OK");
+            DOpus.Dlg.Request("Error: The selected file (" + selectedBakFullName + ") does appear to match the selected backup extension: " + backupExtension, "OK");
             return;
         }
         
