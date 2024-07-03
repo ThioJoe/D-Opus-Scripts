@@ -1,6 +1,6 @@
 // Copy a tree view of selected files/folders
 // By ThioJoe
-// Updated: 7/3/24 (1.0.1)
+// Updated: 7/3/24 (1.0.2)
 
 //   Argument Template:
 //   UP_ONE_CONTEXT/O/S,FILES_FIRST/O/S,EXPAND_DEPTH/O/N,CONTEXT_LINE/O
@@ -56,12 +56,12 @@ function OnClick(clickData)
     // Parse optional arguments if they're there
     if (clickData.func.args.got_arg.UP_ONE_CONTEXT) {
         showSourceOneUpContext = true;
-        DOpus.Output("Received UP_ONE_CONTEXT argument");
+        //DOpus.Output("Received UP_ONE_CONTEXT argument");
     }
     
     if (clickData.func.args.got_arg.FILES_FIRST) {
         filesFirst = true;
-        DOpus.Output("Received FILES_FIRST argument");
+        //DOpus.Output("Received FILES_FIRST argument");
     }
     
     if (clickData.func.args.got_arg.EXPAND_DEPTH) {
@@ -73,7 +73,7 @@ function OnClick(clickData)
             expandDepth = -1;
             DOpus.Output("ERROR: Invalid EXPAND_DEPTH argument. Must be an integer >= -1. Got: " + clickData.func.args.EXPAND_DEPTH);
         }
-        DOpus.Output("Received EXPAND_DEPTH argument: " + expandDepth);
+        //DOpus.Output("Received EXPAND_DEPTH argument: " + expandDepth);
     }
     
     if (clickData.func.args.got_arg.CONTEXT_LINE) {
@@ -85,7 +85,7 @@ function OnClick(clickData)
             contextLine = "folder";
             DOpus.Output("ERROR: Invalid CONTEXT_LINE argument. Must be either 'none', 'folder', or 'path'. Got: " + clickData.func.args.CONTEXT_LINE);
         }
-        DOpus.Output("Received CONTEXT_LINE argument: " + contextLine);
+        //DOpus.Output("Received CONTEXT_LINE argument: " + contextLine);
     }
 
     // Further variable setup
@@ -222,9 +222,29 @@ function convertTreeToText(tree, folderTerminator, indent, filesFirst, middleFil
             var subTreeText = convertTreeToText(tree[key], folderTerminator, indent + (isLastEntry ? "    " : verticalBranch + "   "), filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, lastFileBranch, false);
             treeText += subTreeText;
 
-            // Add a blank line after each directory for readability, but not if it's the last entry in the root and only if the folder has sub-items
-            if (isDir && !isLastEntry && subTreeText.replace(/^\s+|\s+$/g, '').length > 0) {
-                treeText += indent + verticalBranch + "\n";
+            // Check if current directory is empty
+            var isCurrentDirEmpty = subTreeText.replace(/^\s+|\s+$/g, '').length === 0;
+
+            // Only add spacing if it's not the last entry
+            if (!isLastEntry) {
+                // Get the next entry
+                var nextEntry = entries[i + 1];
+                
+                // Check if the next entry is a directory
+                if (tree[nextEntry] && tree[nextEntry]["_isDir"]) {
+                    var nextSubTreeText = convertTreeToText(tree[nextEntry], folderTerminator, "", filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, lastFileBranch, false);
+                    var isNextDirEmpty = nextSubTreeText.replace(/^\s+|\s+$/g, '').length === 0;
+
+                    // Add spacer line if:
+                    // 1. Current directory is not empty, OR
+                    // 2. Current directory is empty but the next one is not
+                    if (!isCurrentDirEmpty || (isCurrentDirEmpty && !isNextDirEmpty)) {
+                        treeText += indent + verticalBranch + "\n";
+                    }
+                } else {
+                    // If next entry is not a directory, always add a spacer
+                    treeText += indent + verticalBranch + "\n";
+                }
             }
         }
 
