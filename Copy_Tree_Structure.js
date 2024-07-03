@@ -1,6 +1,6 @@
 // Copy a tree view of selected files/folders
 // By ThioJoe
-// Updated: 7/2/24 (First Version)
+// Updated: 7/3/24 (1.0.1)
 
 //   Argument Template:
 //   UP_ONE_CONTEXT/O/S,FILES_FIRST/O/S,EXPAND_DEPTH/O/N,CONTEXT_LINE/O
@@ -47,6 +47,10 @@ function OnClick(clickData)
     var folderPrefix = "";
     // The string to suffix folder names with (default is empty string)
     var folderSuffix = "";
+    
+    // In files first mode, this sets whether to show the endFileBranch string above for the last file in the folder, even if there are folders below it
+    var discontinuousBranchForLastFile = true;
+    
     // ---------------------------------------------------------------------
 
     // Parse optional arguments if they're there
@@ -84,8 +88,13 @@ function OnClick(clickData)
         DOpus.Output("Received CONTEXT_LINE argument: " + contextLine);
     }
 
-    // Make contextLine lower case
+    // Further variable setup
     contextLine = contextLine.toLowerCase()
+    if (discontinuousBranchForLastFile === false) {
+        var lastFileBranch = middleFileBranch;
+    } else {
+        var lastFileBranch = endFileBranch;
+    }
 
     var tab = clickData.func.sourcetab;
     var selectedItems = tab.selected;
@@ -123,7 +132,7 @@ function OnClick(clickData)
 
     // Create the tree output
     var treeOutput = topLine;
-    treeOutput += generateTree(expandedItems, initialDepth, filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix);
+    treeOutput += generateTree(expandedItems, initialDepth, filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, lastFileBranch);
 
     DOpus.SetClip(treeOutput);
 }
@@ -151,7 +160,7 @@ function expandSelectedItems(items, expandDepth) {
     return expandedItems;
 }
 
-function generateTree(items, baseDepth, filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix) {
+function generateTree(items, baseDepth, filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, lastFileBranch) {
     var treeText = "";
     var pathTree = {};
 
@@ -172,12 +181,12 @@ function generateTree(items, baseDepth, filesFirst, middleFileBranch, endFileBra
     }
 
     // Convert the tree structure to text
-    treeText = convertTreeToText(pathTree, "", "", filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, true);
+    treeText = convertTreeToText(pathTree, "", "", filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, lastFileBranch, true);
 
     return treeText;
 }
 
-function convertTreeToText(tree, folderTerminator, indent, filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, isRoot) {
+function convertTreeToText(tree, folderTerminator, indent, filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, lastFileBranch, isRoot) {
     var treeText = "";
     var entries = [];
     var dirs = [];
@@ -206,11 +215,11 @@ function convertTreeToText(tree, folderTerminator, indent, filesFirst, middleFil
         var isLastEntry = (i === entries.length - 1);
         var isLastFile = (i === files.length - 1 && filesFirst && i < files.length);
 
-        var line = indent + (isDir ? (isLastEntry ? endFolderBranch : middleFolderBranch) : (isLastEntry || isLastFile ? endFileBranch : middleFileBranch)) + (isDir ? folderPrefix + key + folderSuffix : key) + "\n";
+        var line = indent + (isDir ? (isLastEntry ? endFolderBranch : middleFolderBranch) : (isLastEntry ? endFileBranch : (isLastFile ? lastFileBranch : middleFileBranch))) + (isDir ? folderPrefix + key + folderSuffix : key) + "\n";
         treeText += line;
 
         if (isDir) {
-            var subTreeText = convertTreeToText(tree[key], folderTerminator, indent + (isLastEntry ? "    " : verticalBranch + "   "), filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, false);
+            var subTreeText = convertTreeToText(tree[key], folderTerminator, indent + (isLastEntry ? "    " : verticalBranch + "   "), filesFirst, middleFileBranch, endFileBranch, middleFolderBranch, endFolderBranch, verticalBranch, folderPrefix, folderSuffix, lastFileBranch, false);
             treeText += subTreeText;
 
             // Add a blank line after each directory for readability, but not if it's the last entry in the root and only if the folder has sub-items
