@@ -99,7 +99,7 @@ function OnClick(clickData) {
                 clickData.func.command.RunCommand(commandString);
             }
             
-            // Rename the .bak file to the original file name
+            // Copy the .bak file as the original file name
             commandString = 'Copy DUPLICATE "' + bakFilePath + '" AS "' + originalFileName + '"';
             //DOpus.Output("Running command: " + commandString);
             clickData.func.command.RunCommand(commandString);
