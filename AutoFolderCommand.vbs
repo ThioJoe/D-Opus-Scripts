@@ -20,7 +20,7 @@ Function OnInit(initData)
     config.FolderCommandPairs = "Path1 = C:\SomeExample\*\Path" & vbNewLine & _
                                 "EntryCommand1 = Toolbar Example_Toolbar_Name" & vbNewLine & _
                                 "LeaveCommand1 = Toolbar Example_Toolbar_Name CLOSE" & vbNewLine & _
-                                "Switches2 = AlwaysRunLeave,AlwaysRunEntry"
+                                "Switches1 = AlwaysRunLeave, AlwaysRunEntry"
 
     config_desc("FolderCommandPairs") = _
             "Enter path-command pairs, one per line. Use the following format:" & vbNewLine & _
