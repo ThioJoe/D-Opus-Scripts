@@ -49,7 +49,7 @@ Function OnInit(initData)
     
     ' Disable variable cache for debugging
     config.DisableCache = False
-    config_desc("DisableCache") = "Disables using Script.Vars cache and re-parses config on every instance"
+    config_desc("DisableCache") = "Disables using Script.Vars cache and re-parses config on every instance. You might need to enable this temporarily after changing the config."
     config_groups("DisableCache") = "2 - Options"
 
     initData.config_desc = config_desc
