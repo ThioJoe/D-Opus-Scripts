@@ -217,16 +217,16 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
             Dim shouldRunLeaveCommand: shouldRunLeaveCommand = False
             
             If newPath = "" Then
-                DebugOutput 3, "    > New path is empty"
+                DebugOutput 3, "    > New path is empty, will queue leave command"
                 shouldRunLeaveCommand = True
             ElseIf Not wildPath.Match(newPath) Then
-                DebugOutput 3, "    > No Match For New Path -- " & newPath
+                DebugOutput 3, "    > No Match For New Path, queuing leave command -- " & newPath
                 shouldRunLeaveCommand = True
             ElseIf alwaysRunLeave Then
-                DebugOutput 3, "    > AlwaysRunLeave is True"
+                DebugOutput 3, "    > New Path matched so leave command wouldn't have been queued, but queuing anyway because AlwaysRunLeave is True"
                 shouldRunLeaveCommand = True
             Else
-                DebugOutput 3, "    > Match found for new path and AlwaysRunLeave is False: " & newPath
+                DebugOutput 3, "    > Match found for new path and AlwaysRunLeave is False, not queuing leave command: " & newPath
             End If
             
             If shouldRunLeaveCommand Then
@@ -234,7 +234,7 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
                     DebugOutput 3, "Queuing leave command for path: " & folderPattern
                     leaveCommands.Add folderPattern, commandArray(1)
                 Else
-                    DebugOutput 3, "Path rule matched but no leave command set for pattern: " & folderPattern
+                    DebugOutput 3, "Tried to run leave command, but no leave command set for pattern: " & folderPattern
                 End If
             End If
         Else
@@ -287,7 +287,7 @@ Sub QueueEntryCommands(oldPath, newPath)
                 DebugOutput 3, "    > No Match For Old Path, queuing command -- " & oldPath
                 shouldQueueCommand = True
             ElseIf alwaysRunEntry Then
-                DebugOutput 3, "    > old path matched and would not have been queued, but queuing anyway because AlwaysRunEntry is True"
+                DebugOutput 3, "    > Old path matched so entry command would not have been queued, but queuing anyway because AlwaysRunEntry is True"
                 shouldQueueCommand = True
             Else
                 DebugOutput 3, "    > Match Found For Old Path and AlwaysRunEntry is False, not queuing entry command -- " & oldPath
@@ -302,7 +302,7 @@ Sub QueueEntryCommands(oldPath, newPath)
                 DebugOutput 3, "Queuing entry command for path: " & folderPattern
                 enterCommands.Add folderPattern, commandArray(0)
             Else
-                DebugOutput 3, "Path rule matched but no entry command set for pattern: " & folderPattern
+                DebugOutput 3, "Tried to run entry command, but no entry command set for pattern: " & folderPattern
             End If
         End If
     Next
