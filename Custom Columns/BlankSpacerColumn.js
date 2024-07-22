@@ -17,6 +17,6 @@ function OnAddColumns(addColData) {
     col.defwidth = 20;
     col.autorefresh = 0;
     col.autogroup = true;
-	col.nosort=true;
-	col.nogroup=true;
+    col.nosort=true;
+    col.nogroup=true;
 }
