@@ -198,7 +198,7 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
     Dim folderCommandPairs: Set folderCommandPairs = ParseFolderCommandPairs()
     Dim leaveCommands: Set leaveCommands = CreateObject("Scripting.Dictionary")
     
-	DebugOutput 3, "*****************************************************"
+    DebugOutput 3, "*****************************************************"
     'DebugOutput 3, "------------------------------------------"
     DebugOutput 3, "Testing For Leave Commands:"
     
@@ -208,7 +208,7 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
         
         commandArray = folderCommandPairs(folderPattern)
         Dim alwaysRunLeave: alwaysRunLeave = commandArray(2)(1)
-		DebugOutput 3, "  alwaysRunLeave: " & alwaysRunLeave
+        DebugOutput 3, "  alwaysRunLeave: " & alwaysRunLeave
         
         ' Check for leaving a matched folder
         If wildPath.Match(oldPath) Then
@@ -244,7 +244,7 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
 
     ' Execute leave commands
     For Each folderPattern In leaveCommands.Keys
-		DebugOutput 3, "------------------------------------------"
+        DebugOutput 3, "------------------------------------------"
         DebugOutput 2, "Running leave command for path: " & folderPattern
         DebugOutput 2, "   Leave command: " & leaveCommands(folderPattern)
         
@@ -271,7 +271,7 @@ Sub QueueEntryCommands(oldPath, newPath)
         
         commandArray = folderCommandPairs(folderPattern)
         Dim alwaysRunEntry: alwaysRunEntry = commandArray(2)(0)
-		DebugOutput 3, "  alwaysRunEntry: " & alwaysRunEntry
+        DebugOutput 3, "  alwaysRunEntry: " & alwaysRunEntry
         
         Dim shouldQueueCommand
         shouldQueueCommand = False
@@ -317,7 +317,7 @@ Sub ExecuteQueuedEntryCommands(sourceTab)
         
         ' Check if enterCommands is not empty
         If enterCommands.Count > 0 Then
-			DebugOutput 3, "------------------------------------------"
+            DebugOutput 3, "------------------------------------------"
             ' Execute entry commands
             Dim folderPattern
             For Each folderPattern In enterCommands.Keys
