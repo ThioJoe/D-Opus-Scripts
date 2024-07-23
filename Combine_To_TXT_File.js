@@ -3,7 +3,6 @@
 // Argument Template:
 // EXCLUDE_HEADERS/S, USE_RELATIVE_PATH/S, HIDE_EXTENSIONS/S, DEBUG_MODE/S, SORT_TYPE/K[name,date,name-reverse,date-reverse,directory], OUTPUT_UP_ONE/S, OUTPUT/K, INPUT_DIR/O, NO_FINISHED_DIALOG/S
 
-
 function OnClick(clickData) {
     var sortType = ""; // Default to empty to determine if argument was passed
     var excludeHeaders = false;
@@ -164,9 +163,9 @@ function OnClick(clickData) {
     sortFiles(filesArray, sortOption, clickData.func.sourcetab.path);
 
     // Determine the output path and file name
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
     if (outputFileName) {
         // Check if outputFileName is a full path
-        var fso = new ActiveXObject("Scripting.FileSystemObject");
         if (fso.FolderExists(fso.GetParentFolderName(outputFileName)) || fso.FileExists(outputFileName)) {
             outputPath = fso.GetParentFolderName(outputFileName);
             outputFileName = fso.GetFileName(outputFileName);
@@ -185,13 +184,36 @@ function OnClick(clickData) {
 
     var outputFilePath = outputPath + "\\" + outputFileName;
 
-    var fso = new ActiveXObject("Scripting.FileSystemObject");
+    // Initialize the Progress object
+    var progress = clickData.func.command.progress;
+    progress.abort = true;
+    progress.owned = true;
+    progress.delay = false;
+    progress.bytes = false;
+    progress.Init(clickData.func.sourcetab, debugMode ? "Generating Debug List" : "Concatenating Text Files");
+
+    // Calculate total byte size of selected files (only if not in debug mode)
+    var totalBytes = 0;
+    if (!debugMode) {
+        for (var i = 0; i < filesArray.length; i++) {
+            var file = filesArray[i];
+            var fileSize = fso.GetFile(file.path).Size;
+            totalBytes += fileSize;
+        }
+    }
+
+    progress.SetFiles(filesArray.length);
+    progress.Show();
+
     var outputFile = fso.CreateTextFile(outputFilePath, true);
     var separator = "----------------------------------------";
+    var bytesProcessed = 0;
 
+    // Remove the SetPercent call and update the progress with StepFiles
     for (var i = 0; i < filesArray.length; i++) {
         var file = filesArray[i];
-
+        progress.SetName(file.name);
+        progress.SetType("file");
         var header;
         if (useRelativePath) {
             header = "\\" + file.relativePath;
@@ -201,26 +223,35 @@ function OnClick(clickData) {
         } else {
             header = hideExtensions ? file.name.replace(/\.[^\.]*$/, '') : file.name;
         }
-
         if (debugMode) {
             outputFile.WriteLine(header);
         } else {
             if (!excludeHeaders) {
                 outputFile.WriteLine(separator + " " + header + " " + separator);
             }
-
             var inputFile = fso.OpenTextFile(file.path, 1);
             var content = inputFile.ReadAll();
+            var fileSize = fso.GetFile(file.path).Size;
             inputFile.Close();
-
             outputFile.WriteLine(content);
             if (!excludeHeaders) {
                 outputFile.WriteLine(); // Add a blank line between files
             }
+            bytesProcessed += fileSize;
+        }
+        progress.StepFiles(1);
+        
+        if (progress.GetAbortState() == "a") {
+            outputFile.Close();
+            fso.DeleteFile(outputFilePath);
+            progress.Hide(); // Close the progress window
+            return;
         }
     }
 
     outputFile.Close();
+
+    progress.Hide(); // Close the progress window
 
     if (!noFinishedDialog) {
         var finalDlg = clickData.func.Dlg;
