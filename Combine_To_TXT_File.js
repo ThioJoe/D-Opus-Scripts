@@ -1,7 +1,7 @@
 // User command to combine selected files into a single text file with several options
 //
 // Argument Template:
-// EXCLUDE_HEADERS/S, USE_RELATIVE_PATH/S, HIDE_EXTENSIONS/S, DEBUG_MODE/S, SORT_TYPE/K[name,date,name-reverse,date-reverse,directory], OUTPUT_UP_ONE/S, OUTPUT/K, INPUT_DIR/O
+// EXCLUDE_HEADERS/S, USE_RELATIVE_PATH/S, HIDE_EXTENSIONS/S, DEBUG_MODE/S, SORT_TYPE/K[name,date,name-reverse,date-reverse,directory], OUTPUT_UP_ONE/S, OUTPUT/K, INPUT_DIR/O, NO_FINISHED_DIALOG/S
 
 
 function OnClick(clickData) {
@@ -11,6 +11,7 @@ function OnClick(clickData) {
     var hideExtensions = false;
     var debugMode = false;
     var outputUpOne = false;
+    var noFinishedDialog = false; // Whether to hide the completion dialog that shows output path
     var outputPath = clickData.func.sourcetab.path; // Default output path
     var outputFileName = ""; // Default to empty to check if argument was passed
     var inputDir = ""; // Default to empty to check if argument was passed
@@ -21,6 +22,9 @@ function OnClick(clickData) {
     }
     if (clickData.func.args.got_arg.EXCLUDE_HEADERS) {
         excludeHeaders = clickData.func.args.EXCLUDE_HEADERS;
+    }
+    if (clickData.func.args.got_arg.NO_FINISHED_DIALOG) {
+        noFinishedDialog = clickData.func.args.NO_FINISHED_DIALOG;
     }
     if (clickData.func.args.got_arg.USE_RELATIVE_PATH) {
         useRelativePath = clickData.func.args.USE_RELATIVE_PATH;
@@ -218,14 +222,16 @@ function OnClick(clickData) {
 
     outputFile.Close();
 
-    var finalDlg = clickData.func.Dlg;
-    finalDlg.window = clickData.func.sourcetab;
-    finalDlg.message = debugMode ?
-        "Debug list generated successfully.\nOutput file: " + outputFilePath :
-        "Text files concatenated successfully.\nOutput file: " + outputFilePath;
-    finalDlg.buttons = "OK";
-    finalDlg.icon = "info";
-    finalDlg.Show();
+    if (!noFinishedDialog) {
+        var finalDlg = clickData.func.Dlg;
+        finalDlg.window = clickData.func.sourcetab;
+        finalDlg.message = debugMode ?
+            "Debug list generated successfully.\nOutput file: " + outputFilePath :
+            "Text files concatenated successfully.\nOutput file: " + outputFilePath;
+        finalDlg.buttons = "OK";
+        finalDlg.icon = "info";
+        finalDlg.Show();
+    }
 }
 
 function getRelativePath(item, sourcePath) {
