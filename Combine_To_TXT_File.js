@@ -2,6 +2,23 @@
 //
 // Argument Template:
 // EXCLUDE_HEADERS/S, USE_RELATIVE_PATH/S, HIDE_EXTENSIONS/S, DEBUG_MODE/S, SORT_TYPE/K[name,date,name-reverse,date-reverse,directory], OUTPUT_UP_ONE/S, OUTPUT/K, INPUT_DIR/O, NO_FINISHED_DIALOG/S
+//
+// Arguments:
+// EXCLUDE_HEADERS (Switch): Do not add name of files before the contents of each file in the final combined text file.
+// USE_RELATIVE_PATH (Switch): Use relative paths for headers instead of just file names.
+// HIDE_EXTENSIONS (Switch): Hide file extensions in the headers.
+// DEBUG_MODE (Switch): Only print headers without file contents, useful for debugging sorting and file selection.
+// SORT_TYPE (Keyword): Specify the sorting type for the files. Options are:
+//     name: Sort by file name in ascending order.
+//     date: Sort by modification date in ascending order.
+//     name-reverse: Sort by file name in descending order.
+//     date-reverse: Sort by modification date in descending order.
+//     directory: Sort by directory structure with files first.
+// OUTPUT_UP_ONE (Switch): Output the resulting file one directory higher than the current directory (parent directory).
+// OUTPUT (String): Specify the output path. Can be a full path, relative path, or just the file name. If set, it overrides OUTPUT_UP_ONE.
+// INPUT_DIR (Optional - Include with or without assigned value): Input a path to a folder. If no value is set, use the selected folder(s) in Directory Opus. Can be used to specify a folder for combining all files within it.
+// NO_FINISHED_DIALOG (Switch): Hide the completion dialog that shows the output path when the process is finished.
+
 
 function OnClick(clickData) {
     var sortType = ""; // Default to empty to determine if argument was passed
