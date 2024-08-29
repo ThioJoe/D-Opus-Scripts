@@ -1,33 +1,50 @@
-'Version: 1.1.0 - 7/22/24
+'Version: 2.0.0 - 8/28/24
+'IMPORTANT PERFORMANCE TIP: Use the "@runonce:" command modifier if using this with a context menu button
+'Just put it before whatever name you set for the user command. So for example:    @runonce:Copy_Shortcut_Target_With_Arguments
+
 Option Explicit
+
 Function OnClick(ByRef clickData)
-    Dim WShell, fs, selectedItems, item, path, fExt, oSHLink, targetPath, arguments, resolvedPaths, itemIndex
-    Set WShell = CreateObject("WScript.Shell")
+    Dim fs, selectedItems, item, path, fExt, resolvedPaths, itemIndex
     Set fs = CreateObject("Scripting.FileSystemObject")
+	Dim shellLink
+	Set shellLink = CreateObject("Shell.Application")
+
     resolvedPaths = ""
     Set selectedItems = clickData.func.sourcetab.selected
-    
+	clickData.func.command.deselect = false
+
     If selectedItems.count = 0 Then
-        DOpus.Output "No files selected."
+        'DOpus.Output "No files selected."
         Exit Function
     End If
-    
+
     itemIndex = 0
     For Each item In selectedItems
         If itemIndex > 0 Then
-            ' Add newline character for each subsequent item added
             resolvedPaths = resolvedPaths & vbCrLf
         End If
-        
+
         path = item.realpath
         fExt = LCase(fs.GetExtensionName(path))
-        
+
         Select Case fExt
             Case "lnk"
-                Set oSHLink = WShell.CreateShortcut(path)
-                targetPath = oSHLink.TargetPath
-                arguments = oSHLink.Arguments
-                resolvedPaths = resolvedPaths & targetPath & " " & arguments
+                Dim linkData, targetPath, arguments
+                Set linkData = shellLink.Namespace(fs.GetParentFolderName(path)).ParseName(fs.GetFileName(path)).GetLink
+                targetPath = linkData.Target.Path
+                arguments = linkData.Arguments
+
+                'DOpus.Output "Processing: " & path
+                'DOpus.Output "Target: " & targetPath
+                'DOpus.Output "Arguments: " & arguments
+
+                If targetPath <> "" Then
+                    resolvedPaths = resolvedPaths & Trim(targetPath & " " & arguments)
+                Else
+                    resolvedPaths = resolvedPaths & path ' Fallback to original path
+                End If
+
             Case "url"
                 Dim urlFile, url
                 Set urlFile = fs.OpenTextFile(path, 1) ' 1 = ForReading
@@ -42,13 +59,13 @@ Function OnClick(ByRef clickData)
             Case Else
                 resolvedPaths = resolvedPaths & path
         End Select
-        
+
         itemIndex = itemIndex + 1
     Next
-    ' Copy the resolved paths to the clipboard
-    DOpus.SetClip resolvedPaths
-    
-    Set oSHLink = Nothing
+
+    Set shellLink = Nothing
+    DOpus.SetClip Trim(resolvedPaths)
+    'DOpus.Output "Resolved paths: " & resolvedPaths
+
     Set fs = Nothing
-    Set WShell = Nothing
 End Function
