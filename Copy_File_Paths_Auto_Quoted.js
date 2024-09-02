@@ -1,6 +1,6 @@
 // Copies files or folders full paths to clipboard with quotes around it if it has spaces. Various optional behavior for multiple selected items
 // By ThioJoe
-// Updated: 6/21/24
+// Updated: 9/1/24
 
 // Discussion Thread / Latest Version: https://resource.dopus.com/t/scripts-to-copy-file-folder-name-s-or-path-s-with-automatic-surrounding-quotes-based-on-spaces/51122
 // Updates also available on my GitHub repo: https://github.com/ThioJoe/D-Opus-Scripts
@@ -33,6 +33,7 @@ function OnClick(clickData) {
     
     var tab = clickData.func.sourcetab;
     var selectedItems = tab.selected;
+    clickData.func.command.deselect = false
 
     if (selectedItems.count == 0) {
         return; // No files selected, nothing to do.
