@@ -1,6 +1,6 @@
-'Version: 2.2.0 - 8/31/24
-'IMPORTANT PERFORMANCE TIP: Use the "@runonce:" command modifier if using this with a context menu button
-'Just put it before whatever name you set for the user command. So for example:    @runonce:Copy_Shortcut_Target_With_Arguments
+' Version: 2.2.1 - 9/2/24
+' IMPORTANT PERFORMANCE TIP: Use the "@runonce:" command modifier if using this with a context menu button
+' Just put it before whatever name you set for the user command. So for example:    @runonce:Copy_Shortcut_Target_With_Arguments
 
 '   Arguments Template (Must put this in the 'Template' box in the command editor to use arguments):
 '   PARSE_SHELL_ID/S,DONT_CROP_SHELL/S
@@ -52,29 +52,9 @@ Function OnClick(ByRef clickData)
         Dim resolvedPath
         Select Case fExt
             Case "lnk"
-                Dim linkData, targetPath, arguments
-                Set linkData = shellLink.Namespace(fs.GetParentFolderName(path)).ParseName(fs.GetFileName(path)).GetLink
-                targetPath = linkData.Target.Path
-                arguments = linkData.Arguments
-                'DOpus.Output "Processing: " & path
-                'DOpus.Output "Target: " & targetPath
-                'DOpus.Output "Arguments: " & arguments
-                If targetPath <> "" Then
-                    resolvedPath = Trim(targetPath & " " & arguments)
-                Else
-                    resolvedPath = path ' Fallback to original path
-                End If
+                resolvedPath = GetLnkFullPath(shellLink, fs, path)
             Case "url"
-                Dim urlFile, url
-                Set urlFile = fs.OpenTextFile(path, 1) ' 1 = ForReading
-                Do Until urlFile.AtEndOfStream
-                    url = urlFile.ReadLine
-                    If Left(LCase(url), 4) = "url=" Then
-                        resolvedPath = Mid(url, 5)
-                        Exit Do
-                    End If
-                Loop
-                urlFile.Close
+                resolvedPath = GetUrlFullPath(fs, path)
             Case Else
                 resolvedPath = path
         End Select
@@ -119,4 +99,34 @@ Function parseCLSID(path, DontCropShell)
         ' No CLSID found, keep the original path
         parseCLSID = path
     End If
+End Function
+
+' Function to return the full path and arguments of a .lnk shortcut file
+' Where ShellLinkObj is created via:   CreateObject("Shell.Application")
+'    and 'fs' is created via: CreateObject("Scripting.FileSystemObject")
+Function GetLnkFullPath(shellLinkObj, fs, path)
+    Dim linkData, targetPath, arguments
+    Set linkData = shellLinkObj.Namespace(fs.GetParentFolderName(path)).ParseName(fs.GetFileName(path)).GetLink
+    targetPath = linkData.Target.Path
+    arguments = linkData.Arguments
+    If targetPath <> "" Then
+        GetLnkFullpath = Trim(targetPath & " " & arguments)
+    Else
+        GetLnkFullpath = Trim(path) ' Fallback to original path
+    End If
+End Function
+
+' Function to read text from .url file to get URL target.
+' Where 'path' is the .url file path and 'fs' is created via: CreateObject("Scripting.FileSystemObject")
+Function GetUrlFullPath(fs, path)
+    Dim urlFile, url
+    Set urlFile = fs.OpenTextFile(path, 1) ' 1 = ForReading
+    Do Until urlFile.AtEndOfStream
+        url = urlFile.ReadLine
+        If Left(LCase(url), 4) = "url=" Then
+            GetUrlFullPath = Mid(url, 5)
+            Exit Do
+        End If
+    Loop
+    urlFile.Close
 End Function

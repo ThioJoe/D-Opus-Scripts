@@ -1,4 +1,7 @@
-﻿Option Explicit
+﻿' Version: 2.2.1 - 9/2/24
+' This add-in script is basically a column version of Copy_Shortcut_Target_With_Arguments.vbs
+' It will display the full path of a shortcut (either .lnk or .url file), including arguments
+Option Explicit
 
 ' The script column definition
 Function OnInit(initData)
@@ -20,7 +23,7 @@ Function OnInit(initData)
 End Function
 
 Function OnShortcutTargetArgs(scriptColData)
-    Dim item, fs, path, fExt, shellLink, folder, link, targetPath, arguments
+    Dim item, fs, path, fExt, shellLink
     Set item = scriptColData.item
     Set fs = CreateObject("Scripting.FileSystemObject")
     path = item.realpath
@@ -28,25 +31,43 @@ Function OnShortcutTargetArgs(scriptColData)
 
     If fExt = "lnk" Then
         ' Handle .lnk files
-        Set shellLink = CreateObject("Shell.Application").Namespace(fs.GetParentFolderName(path)).ParseName(fs.GetFileName(path)).GetLink
-        targetPath = shellLink.Target.Path
-        arguments = shellLink.Arguments
-        scriptColData.value = targetPath & " " & arguments
+        Set shellLink = CreateObject("Shell.Application")
+        scriptColData.value = GetLnkFullPath(shellLink, fs, path)
         Set shellLink = Nothing
     ElseIf fExt = "url" Then
-        ' Handle .url files
-        Dim urlFile, line
-        Set urlFile = fs.OpenTextFile(path, 1) ' 1 = ForReading
-        Do Until urlFile.AtEndOfStream
-            line = urlFile.ReadLine
-            If LCase(Left(line, 4)) = "url=" Then
-                scriptColData.value = Trim(Mid(line, 5))
-                Exit Do
-            End If
-        Loop
-        urlFile.Close
+        scriptColData.value = GetUrlFullPath(fs, path)
     Else
-        ' For other files, return empty or original path
+        ' For other files, return empty
         scriptColData.value = ""
     End If
+End Function
+
+' Function to return the full path and arguments of a .lnk shortcut file
+' Where ShellLinkObj is created via:   CreateObject("Shell.Application")
+'    and 'fs' is created via: CreateObject("Scripting.FileSystemObject")
+Function GetLnkFullPath(shellLinkObj, fs, path)
+    Dim linkData, targetPath, arguments
+    Set linkData = shellLinkObj.Namespace(fs.GetParentFolderName(path)).ParseName(fs.GetFileName(path)).GetLink
+    targetPath = linkData.Target.Path
+    arguments = linkData.Arguments
+    If targetPath <> "" Then
+        GetLnkFullpath = Trim(targetPath & " " & arguments)
+    Else
+        GetLnkFullpath = Trim(path) ' Fallback to original path
+    End If
+End Function
+
+' Function to read text from .url file to get URL target.
+' Where 'path' is the .url file path and 'fs' is created via: CreateObject("Scripting.FileSystemObject")
+Function GetUrlFullPath(fs, path)
+    Dim urlFile, url
+    Set urlFile = fs.OpenTextFile(path, 1) ' 1 = ForReading
+    Do Until urlFile.AtEndOfStream
+        url = urlFile.ReadLine
+        If Left(LCase(url), 4) = "url=" Then
+            GetUrlFullPath = Mid(url, 5)
+            Exit Do
+        End If
+    Loop
+    urlFile.Close
 End Function
