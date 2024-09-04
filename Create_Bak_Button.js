@@ -1,9 +1,9 @@
 // Button / User Command script that creates '.bak' backups for any number of selected files or folders. If a .bak already exists for an item, it will create .bak2, .bak3 and so on. Also has an argument option to restore a file.
 // By ThioJoe
-// Updated: 7/2/24
+// Updated: 9/3/24
 
 //    Argument Template:    
-//    RESTORE/O/S,BACKUP_EXTENSION/O
+//    RESTORE/S,RENAME/S,BACKUP_EXTENSION/K
 
 //    Example usages of arguments:
 //       Make_bak BACKUP_EXTENSION=".bak"
@@ -21,6 +21,10 @@ function OnClick(clickData) {
     // Note: Selected backup file to restore from must match the base backupExtension variable. (It's ok if it's numbered, for example if backupExtension is '.bak' you can still restore a '.bak4' file.
     // >  Optional Argument Name: RESTORE (Switch, no value needed)
     var doRestore = false;
+    
+    // With this set to true (or if argument is used), the original file/folder will be renamed with the backup extension, instead of a copy being made
+    // >  Optional Argument Name: RENAME (Switch, no value needed)
+    var doRename = false;
 
     // -----------------------------------------------------------------------
 
@@ -28,6 +32,11 @@ function OnClick(clickData) {
     if (clickData.func.args.got_arg.RESTORE) {
         doRestore = true;
         //DOpus.Output("Received RESTORE switch argument");
+    }
+
+    if (clickData.func.args.got_arg.RENAME) {
+        doRename = true;
+        //DOpus.Output("Received RENAME switch argument");
     }
     
     if (clickData.func.args.got_arg.BACKUP_EXTENSION) {
@@ -54,18 +63,25 @@ function OnClick(clickData) {
         var lastBakNum = getLastBakNum(item);
         //DOpus.Output("LastBakNum: " + lastBakNum);
 
-        // If there is no already existing .bak or .bak# of the selected item, create them
-        var commandString;
+        // Determine string to append with number if necessary
+        var bakNumString = ""
         if (lastBakNum == 0) {
-            commandString = 'Copy DUPLICATE "' + selectedItem + '" AS *' + backupExtension;
-            //DOpus.Output("Running command: " + commandString);
-            clickData.func.command.RunCommand(commandString);
+            bakNumString = ""
         } else {
-            var newBakNum = lastBakNum + 1;
-            commandString = 'Copy DUPLICATE "' + selectedItem + '" AS *' + backupExtension + newBakNum;
-            //DOpus.Output("Running command: " + commandString);
-            clickData.func.command.RunCommand(commandString);
+            bakNumString = String(lastBakNum + 1)
         }
+        
+        // Construct command string depending on arguments
+        var commandString;
+        if (doRename == true) {
+            // Renames to the new name. Added autonumber just in case
+            commandString = 'Rename FROM "' + selectedItem + '" TO *' + backupExtension + bakNumString + " AUTONUMBER";
+        } else {
+            commandString = 'Copy DUPLICATE "' + selectedItem + '" AS *' + backupExtension + bakNumString;
+        }
+        //DOpus.Output("Running command: " + commandString);
+        clickData.func.command.RunCommand(commandString);
+
     }
     
     function restoreBak(item) {
@@ -84,22 +100,23 @@ function OnClick(clickData) {
             originalFileName = match[1];
         } else {
             // Show error dialogue if the selected file is not a valid .bak file
-            DOpus.Dlg.Request("Error: The selected file (" + selectedBakFullName + ") does appear to match the selected backup extension: " + backupExtension, "OK");
+            DOpus.Dlg.Request("Error: The selected file (" + selectedBakFullName + ") doesn't appear to match the selected backup extension: " + backupExtension, "OK");
             return;
         }
         
         // Determine the paths for the selected .bak file and the original file
         var bakFilePath = String(clickData.func.sourcetab.path) + '\\' + selectedBakFullName;
         var originalFilePath = String(clickData.func.sourcetab.path) + '\\' + originalFileName;
-        if (fso.FileExists(bakFilePath)) {
-            if (fso.FileExists(originalFilePath)) {
-                // Delete the original file if it exists
+        // Ensure expected selected file path works
+        if (fso.FileExists(bakFilePath) || fso.FolderExists(bakFilePath)) {
+            // If original file already exists then delete it first
+            if (fso.FileExists(originalFilePath) || fso.FolderExists(bakFilePath)) {
                 var commandString = 'Delete QUIET "' + originalFilePath + '"';
                 //DOpus.Output("Running command: " + commandString);
                 clickData.func.command.RunCommand(commandString);
             }
             
-            // Copy the .bak file as the original file name
+            // Rename the .bak file to the original file name
             commandString = 'Copy DUPLICATE "' + bakFilePath + '" AS "' + originalFileName + '"';
             //DOpus.Output("Running command: " + commandString);
             clickData.func.command.RunCommand(commandString);
