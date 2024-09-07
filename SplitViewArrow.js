@@ -2,22 +2,30 @@
 // Allows setting different images for dark/light mode.
 
 // Still To Do:
-// - Add proper config setting of variables
+//   - Add proper config setting of variables
+//   - See if there are any possible universal default images to use
+//   - Update the arrows if the swap button is used
+//   - Maybe instead of separate colors, use fillcolor
 
 // Set arrow file names
-var upDarkImage, downDarkImg, leftDarkImg, rightDarkImg, upLightImg, downLightImg, rightLightImg, leftLightImg
+var upImage, downImage, leftImage, rightImage;
 
-upDarkImage = "Up-White-Arrow.png";
-downDarkImg = "Down-White-Arrow.png"; 
-leftDarkImg = "Left-White-Arrow.png";
-rightDarkImg = "Right-White-Arrow.png";
-upLightImg = "Up-Black-Arrow.png"; 
-downLightImg = "Down-Black-Arrow.png"; 
-rightLightImg = "Right-Black-Arrow.png";
-leftLightImg = "Left-Black-Arrow.png"; 
+//upImage = "Up-Vector-Arrow.svg";
+//downImage = "Down-Vector-Arrow.svg"; 
+//leftImage = "Left-Vector-Arrow.svg";
+//rightImage = "Right-Vector-Arrow.svg";
+
+upImage = "Up-Gray-Arrow.png";
+downImage = "Down-Gray-Arrow.png";  
+leftImage = "Left-Gray-Arrow.png";
+rightImage = "Right-Gray-Arrow.png";
 
 // Options
-var opacityPercent = "20"
+var opacityPercent = "20";
+var useFill = false;
+var lightModeFill = "";
+var darkModeFill = "";
+
 
 // Set directory with the images. Defaults to folder called "BG_Images" within the "User Data" directory opus directory
 var imagesDir = "/dopusdata\\User Data\\BG_Images\\"
@@ -68,19 +76,20 @@ function updateArrow(lister) {
     // Check if Opus is in dark mode
     var isDarkMode = DOpus.Create.SysInfo().DarkMode;
 
+	var fillColorString=""
+	if (isDarkMode && useFill == true) {
+		fillColorString = ",fillcolor:" + darkModeFill;
+	} else if (useFill == true) {
+		fillColorString = ",fillcolor:" + lightModeFill;
+	}
+	DOpus.Output("Fill Color String: " + fillColorString);
+
     var imageName;
 	if (lister.dual === 2) { // Horizontal split
-	    if (isDarkMode) {
-	        imageName = (lister.activetab.right) ? "Up-White-Arrow.png" : "Down-White-Arrow.png";
-	    } else {
-	        imageName = (lister.activetab.right) ? "Up-Black-Arrow.png" : "Down-Black-Arrow.png";
-	    }
+	    imageName = (lister.activetab.right) ? upImage : downImage;
 	} else if (lister.dual === 1) { // Vertical split
-	    if (isDarkMode) {
-	        imageName = (lister.activetab.right) ? "Left-White-Arrow.png" : "Right-White-Arrow.png";
-	    } else {
-	        imageName = (lister.activetab.right) ? "Left-Black-Arrow.png" : "Right-Black-Arrow.png";
-	    }
+	    imageName = (lister.activetab.right) ? leftImage : rightImage;
+
 	} else {
 	    // Handle the case where the Lister is not in dual mode, if needed
 	    imageName = ""; // Or set a default image if appropriate
@@ -89,7 +98,10 @@ function updateArrow(lister) {
 	var imagePath = DOpus.FSUtil.Resolve(imagesDir + imageName);
     //DOpus.Output("Image path: " + imagePath); 
     var cmd = DOpus.Create.Command();
-    cmd.RunCommand('Set BACKGROUNDIMAGE="filedisplay:' + imagePath + '" BACKGROUNDIMAGEOPTS=shared,center,nofade,opacity:' + opacityPercent);
+	var commandString = 'Set BACKGROUNDIMAGE="filedisplay:' + imagePath + '" BACKGROUNDIMAGEOPTS=shared,center,nofade,opacity:' + opacityPercent + fillColorString;
+	//DOpus.Output("Command String:  " + commandString);
+	
+    cmd.RunCommand(commandString);	
 }
 
 function removeArrow(lister) { 
