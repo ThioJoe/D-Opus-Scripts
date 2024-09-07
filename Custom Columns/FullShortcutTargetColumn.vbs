@@ -1,4 +1,4 @@
-﻿' Version: 2.2.1 - 9/2/24
+﻿' Version: 2.3.0 - 9/7/24
 ' This add-in script is basically a column version of Copy_Shortcut_Target_With_Arguments.vbs
 ' It will display the full path of a shortcut (either .lnk or .url file), including arguments
 Option Explicit
@@ -23,7 +23,7 @@ Function OnInit(initData)
 End Function
 
 Function OnShortcutTargetArgs(scriptColData)
-    Dim item, fs, path, fExt, shellLink
+    Dim item, fs, path, fExt, shellLink, shellLinkAlt
     Set item = scriptColData.item
     Set fs = CreateObject("Scripting.FileSystemObject")
     path = item.realpath
@@ -32,8 +32,10 @@ Function OnShortcutTargetArgs(scriptColData)
     If fExt = "lnk" Then
         ' Handle .lnk files
         Set shellLink = CreateObject("Shell.Application")
-        scriptColData.value = GetLnkFullPath(shellLink, fs, path)
+        Set shellLinkAlt = CreateObject("WScript.Shell")
+        scriptColData.value = GetLnkFullPath(shellLink, shellLinkAlt, fs, path)
         Set shellLink = Nothing
+        Set shellLinkAlt = Nothing
     ElseIf fExt = "url" Then
         scriptColData.value = GetUrlFullPath(fs, path)
     Else
@@ -44,16 +46,37 @@ End Function
 
 ' Function to return the full path and arguments of a .lnk shortcut file
 ' Where ShellLinkObj is created via:   CreateObject("Shell.Application")
+' ShellLinkObjAlt is created via:       CreateObject("WScript.Shell")
 '    and 'fs' is created via: CreateObject("Scripting.FileSystemObject")
-Function GetLnkFullPath(shellLinkObj, fs, path)
+Function GetLnkFullPath(shellLinkObj, shellLinkObjAlt, fs, path)
     Dim linkData, targetPath, arguments
+    
+    On Error Resume Next
+    
+    ' Try using Shell.Application first
     Set linkData = shellLinkObj.Namespace(fs.GetParentFolderName(path)).ParseName(fs.GetFileName(path)).GetLink
-    targetPath = linkData.Target.Path
-    arguments = linkData.Arguments
-    If targetPath <> "" Then
-        GetLnkFullpath = Trim(targetPath & " " & arguments)
+    
+    If Err Then
+        ' Fall back to WScript.Shell if any error occurs
+        Err.Clear
+        Set linkData = shellLinkObjAlt.CreateShortcut(path)
+        targetPath = linkData.TargetPath
+        arguments = linkData.Arguments
     Else
-        GetLnkFullpath = Trim(path) ' Fallback to original path
+        targetPath = linkData.Target.Path
+        arguments = linkData.Arguments
+    End If
+
+    ' Return to normal error handling behavior
+    On Error Goto 0
+    
+    If Err.Number <> 0 Then
+        ' If both methods fail, return the original path
+        GetLnkFullPath = Trim(path)
+    ElseIf targetPath <> "" Then
+        GetLnkFullPath = Trim(targetPath & " " & arguments)
+    Else
+        GetLnkFullPath = "[Error]" ' Fallback to original path
     End If
 End Function
 

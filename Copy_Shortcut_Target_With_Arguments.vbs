@@ -1,4 +1,4 @@
-' Version: 2.2.1 - 9/2/24
+' Version: 2.3.0 - 9/7/24
 ' IMPORTANT PERFORMANCE TIP: Use the "@runonce:" command modifier if using this with a context menu button
 ' Just put it before whatever name you set for the user command. So for example:    @runonce:Copy_Shortcut_Target_With_Arguments
 
@@ -30,8 +30,9 @@ Function OnClick(ByRef clickData)
     ' Create necessary objects and variables
     Dim fs, selectedItems, item, path, fExt, resolvedPaths, itemIndex
     Set fs = CreateObject("Scripting.FileSystemObject")
-    Dim shellLink
+    Dim shellLink, shellLinkAlt
     Set shellLink = CreateObject("Shell.Application")
+    Set shellLinkAlt = CreateObject("WScript.Shell")
     resolvedPaths = ""
     Set selectedItems = clickData.func.sourcetab.selected
     clickData.func.command.deselect = False
@@ -52,7 +53,7 @@ Function OnClick(ByRef clickData)
         Dim resolvedPath
         Select Case fExt
             Case "lnk"
-                resolvedPath = GetLnkFullPath(shellLink, fs, path)
+                resolvedPath = GetLnkFullPath(shellLink, shellLinkAlt, fs, path)
             Case "url"
                 resolvedPath = GetUrlFullPath(fs, path)
             Case Else
@@ -67,10 +68,11 @@ Function OnClick(ByRef clickData)
         itemIndex = itemIndex + 1
     Next
     Set shellLink = Nothing
+    Set shellLinkAlt = Nothing
+    Set fs = Nothing
     
     DOpus.SetClip Trim(resolvedPaths)
     'DOpus.Output "Resolved paths: " & resolvedPaths
-    Set fs = Nothing
 End Function
 
 Function parseCLSID(path, DontCropShell)
@@ -103,16 +105,37 @@ End Function
 
 ' Function to return the full path and arguments of a .lnk shortcut file
 ' Where ShellLinkObj is created via:   CreateObject("Shell.Application")
+' ShellLinkObjAlt is created via:       CreateObject("WScript.Shell")
 '    and 'fs' is created via: CreateObject("Scripting.FileSystemObject")
-Function GetLnkFullPath(shellLinkObj, fs, path)
+Function GetLnkFullPath(shellLinkObj, shellLinkObjAlt, fs, path)
     Dim linkData, targetPath, arguments
+    
+    On Error Resume Next
+    
+    ' Try using Shell.Application first
     Set linkData = shellLinkObj.Namespace(fs.GetParentFolderName(path)).ParseName(fs.GetFileName(path)).GetLink
-    targetPath = linkData.Target.Path
-    arguments = linkData.Arguments
-    If targetPath <> "" Then
-        GetLnkFullpath = Trim(targetPath & " " & arguments)
+    
+    If Err Then
+        ' Fall back to WScript.Shell if any error occurs
+        Err.Clear
+        Set linkData = shellLinkObjAlt.CreateShortcut(path)
+        targetPath = linkData.TargetPath
+        arguments = linkData.Arguments
     Else
-        GetLnkFullpath = Trim(path) ' Fallback to original path
+        targetPath = linkData.Target.Path
+        arguments = linkData.Arguments
+    End If
+
+    ' Return to normal error handling behavior
+    On Error Goto 0
+    
+    If Err.Number <> 0 Then
+        ' If both methods fail, return the original path
+        GetLnkFullPath = Trim(path)
+    ElseIf targetPath <> "" Then
+        GetLnkFullPath = Trim(targetPath & " " & arguments)
+    Else
+        GetLnkFullPath = "[Error]" ' Fallback to original path
     End If
 End Function
 
