@@ -1,12 +1,15 @@
 ﻿' Script to automatically run Directory Opus commands when entering specific paths with several options.
-' Version: 1.0.0 - 7/17/24
+' Version: 1.1.0 - 11/1/24
 ' Author: ThioJoe (https://github.com/ThioJoe)
+'
+' Available at GitHub repo: https://github.com/ThioJoe/D-Opus-Scripts
+' Forum Thread: https://resource.dopus.com/t/script-for-running-various-commands-when-entering-specific-paths/51839
 
 Option Explicit
 
 Function OnInit(initData)
     initData.name = "Auto Commands For Specific Folders"
-    initData.version = "1.0"
+    initData.version = "1.1"
     initData.desc = "Automatically run specified commands when entering or leaving configured folders."
     initData.default_enable = true
     initData.min_version = "13.0"
