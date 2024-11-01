@@ -37,10 +37,9 @@ Function OnInit(initData)
             vbNewLine & _
             "Notes:" & vbNewLine & _
             "• <folder_path> can include wildcards (*), folder aliases, and Windows environment variables" & vbNewLine & _
+            "• Commands can even include built-in Opus function arguments like {sourcepath}" & vbNewLine & _
             "• Lines starting with // are treated as comments. Empty lines are also ignored."
-                                
-                                
-                                
+
     config_groups("FolderCommandPairs") = "1 - Folder Commands"
 
     ' Debug logging option
