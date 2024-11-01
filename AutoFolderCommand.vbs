@@ -31,8 +31,9 @@ Function OnInit(initData)
             vbNewLine & _
             "Where:" & vbNewLine & _
             "• X is a number (1, 2, 3, etc.) to group related commands" & vbNewLine & _
-            "• Available switches: AlwaysRunEntry, AlwaysRunLeave" & vbNewLine & _
-            "     -- Lets you run the entry/leave commands even when the next folder also matches the rule." & vbNewLine & _
+            "• Available switches: AlwaysRunEntry, AlwaysRunLeave, DontResolvePath" & vbNewLine & _
+            "     -- AlwaysRunEntry, AlwaysRunLeave: Lets you run the entry/leave commands even when the next folder also matches the rule." & vbNewLine & _
+            "     -- DontResolvePath: The given path will not be resolved before being checked against the lister path. May be necessary for paths like lib:// which would be re-written as C:\Users\... and therefore might not match when expected" & vbNewLine & _
             vbNewLine & _
             "Notes:" & vbNewLine & _
             "• <folder_path> can include wildcards (*), folder aliases, and Windows environment variables" & vbNewLine & _
@@ -94,7 +95,7 @@ Function ParseFolderCommandPairs()
     path = ""
     entryCommand = ""
     leaveCommand = ""
-    switches = Array(False, False) ' [AlwaysRunEntry, AlwaysRunLeave]
+    switches = Array(False, False, False) ' Array of Bools Per Switch: [AlwaysRunEntry, AlwaysRunLeave, DontResolvePath]
     
     For Each line In pairs
         line = Trim(line)
@@ -112,19 +113,24 @@ Function ParseFolderCommandPairs()
                 Dim key: key = LCase(Trim(parts(0)))
                 Dim value: value = Trim(parts(1))
                 
+                ' Check for the keywords we're looking for. 
+                '   "Left" function takes parameters of the string and the number of characters to check (from the left)
+                '   "Key" is the left side of the line split on the equals (=) sign which has been trimmed and converted to lowercase, and should contain the config keyword
+                '   "Value" is the right side of the line split on the equals (=) sign which has been trimmed and should contain the value for that keyword
+
                 If Left(key, 4) = "path" Then
-                    ' If we have a previous path, add it to the result
+                    ' We found a new 'path=' line, so save the accumulated commands for the current path before moving on and starting a new group
                     If path <> "" Then
                         result.Add path, Array(entryCommand, leaveCommand, switches)
-                        DebugOutput 2, "Added pair - Path: " & path & ", EntryCommand: " & entryCommand & ", LeaveCommand: " & leaveCommand & ", Switches: AlwaysRunEntry=" & switches(0) & ", AlwaysRunLeave=" & switches(1)
+                        DebugOutput 2, "Added pair - Path: " & path & ", EntryCommand: " & entryCommand & ", LeaveCommand: " & leaveCommand & ", Switches: AlwaysRunEntry=" & switches(0) & ", AlwaysRunLeave=" & switches(1) & ", DontResolvePath=" & switches(2)
+                        ' Reset the variables for the next group
                         entryCommand = ""
                         leaveCommand = ""
-                        switches = Array(False, False)
+                        switches = Array(False, False, False)
                     End If
-                    
-                    DebugOutput 3, "Parsing path: " & line
-                    path = DOpus.FSUtil.Resolve(value, "j")  ' Resolve aliases
-                    DebugOutput 3, "   > Resolved Path: " & path
+
+                    path = value  ' Store raw path, will resolve in the other loop later depending on switches
+
                 ElseIf Left(key, 12) = "entrycommand" Then
                     DebugOutput 3, "Parsing entry command: " & line
                     entryCommand = value
@@ -141,13 +147,17 @@ Function ParseFolderCommandPairs()
                             switches(0) = True
                         ElseIf switch = "alwaysrunleave" Then
                             switches(1) = True
+                        ElseIf switch = "dontresolvepath" Then
+                            switches(2) = True
+                        Else
+                            DebugOutput 3, "Ignoring unrecognized switch: " & switch
                         End If
                     Next
                 Else
                     DebugOutput 3, "Ignoring unrecognized line: " & line
                 End If
             Else
-                DebugOutput 4, "Ignoring malformed line: " & line
+                DebugOutput 3, "Ignoring malformed line: " & line
             End If
         End If
     Next
@@ -155,19 +165,44 @@ Function ParseFolderCommandPairs()
     ' Add the last path if there is one
     If path <> "" Then
         result.Add path, Array(entryCommand, leaveCommand, switches)
-        DebugOutput 2, "Added pair - Path: " & path & ", EntryCommand: " & entryCommand & ", LeaveCommand: " & leaveCommand & ", Switches: AlwaysRunEntry=" & switches(0) & ", AlwaysRunLeave=" & switches(1)
+        DebugOutput 2, "Added pair - Path: " & path & ", EntryCommand: " & entryCommand & ", LeaveCommand: " & leaveCommand & ", Switches: AlwaysRunEntry=" & switches(0) & ", AlwaysRunLeave=" & switches(1) & ", DontResolvePath=" & switches(2)
     End If
+
+    ' Create a new dictionary to store resolved paths
+    Dim resolvedResult: Set resolvedResult = CreateObject("Scripting.Dictionary")
+    
+    ' Parse and resolve paths here after we know the switches so we can do so based on DontResolvePath switch
+    '    If set to not resolve, then paths like lib:// will not be changed to the absolute drive path
+    Dim pathKey
+    For Each pathKey in result.Keys
+        Dim pathData: pathData = result(pathKey)
+        Dim resolvedPath
+        
+        ' Check if this path should be resolved (based on DontResolvePath switch)
+        If pathData(2)(2) Then  ' switches(2) is DontResolvePath
+            DebugOutput 3, "Not resolving path: " & pathKey
+            resolvedPath = pathKey
+        Else
+            DebugOutput 3, "Resolving path: " & pathKey
+            resolvedPath = DOpus.FSUtil.Resolve(pathKey, "j")
+            DebugOutput 3, "   > Resolved to: " & resolvedPath
+        End If
+        
+        ' Add to new dictionary with resolved path
+        resolvedResult.Add resolvedPath, pathData
+    Next
     
     ' Cache the result
-    Script.vars.Set "CachedFolderCommandPairs", result
+    Script.vars.Set "CachedFolderCommandPairs", resolvedResult
     
-    Set ParseFolderCommandPairs = result
+    Set ParseFolderCommandPairs = resolvedResult
 
     DebugOutput 2, "----------- END PARSE CONFIGS -----------"
 End Function
 
 Function TerminatePath(p)
     TerminatePath = p
+    DebugOutput 3, "  Running TerminatePath function for path: " & p
 
     If (Len(TerminatePath) > 0) Then
         Dim c, pathType, slashToUse
@@ -176,19 +211,23 @@ Function TerminatePath(p)
         
         If pathType = "ftp" Then
             slashToUse = "/"
+            DebugOutput 4, "   > FTP path detected, using forward slash (/)"
         Else
             slashToUse = "\"
+            DebugOutput 4, "   > Local path detected, using backslash (\)"
         End If
 
         If (c <> "\" And c <> "/" And c <> "*" And c <> "?") Then
             TerminatePath = TerminatePath & slashToUse
+            DebugOutput 4, "   > Appending slash - Path is now: " & TerminatePath
         ElseIf (c = "\" Or c = "/") And c <> slashToUse Then
             ' Replace the existing slash if it's the wrong type
             TerminatePath = Left(TerminatePath, Len(TerminatePath) - 1) & slashToUse
+            DebugOutput 4, "   > Replacing slash - Path is now: " & TerminatePath
         End If
     End If
 
-    DebugOutput 4, "TerminatePath: Input = " & p & ", Output = " & TerminatePath
+    DebugOutput 3, "   > TerminatePath: Before = " & p & ", After = " & TerminatePath
 End Function
 
 Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
@@ -207,7 +246,7 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
         DebugOutput 3, "- Checking With Pattern: " & folderPattern
         
         commandArray = folderCommandPairs(folderPattern)
-        Dim alwaysRunLeave: alwaysRunLeave = commandArray(2)(1)
+        Dim alwaysRunLeave: alwaysRunLeave = commandArray(2)(1) ' AlwaysRunLeave switch is the second element in the switches array
         DebugOutput 3, "  alwaysRunLeave: " & alwaysRunLeave
         
         ' Check for leaving a matched folder
@@ -270,7 +309,7 @@ Sub QueueEntryCommands(oldPath, newPath)
         DebugOutput 3, "- Checking With Pattern: " & folderPattern
         
         commandArray = folderCommandPairs(folderPattern)
-        Dim alwaysRunEntry: alwaysRunEntry = commandArray(2)(0)
+        Dim alwaysRunEntry: alwaysRunEntry = commandArray(2)(0) ' AlwaysRunEntry switch is the first element in the switches array
         DebugOutput 3, "  alwaysRunEntry: " & alwaysRunEntry
         
         Dim shouldQueueCommand
@@ -380,6 +419,9 @@ Function OnActivateTab(activateTabData)
     Dim oldPath, newPath
     
     If Not activateTabData.oldtab Is Nothing Then
+        'DOpus.Output("OldTab: " + activateTabData.oldtab)
+        'DOpus.Output("OldTab Type: " + DOpus.TypeOf(activateTabData.oldtab))
+        'DOpus.Output("OldTab Path" + activateTabData.oldtab.Path)
         oldPath = TerminatePath(activateTabData.oldtab.Path)
     Else
         oldPath = ""
