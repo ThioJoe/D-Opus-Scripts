@@ -1,4 +1,4 @@
-; This script lets you press a key (default middle mouse) where it shows a list of open Directory Opus and/or Windows Explorer paths. Including all tabs.
+; This script lets you press a key (default middle mouse) within an Explorer Save/Open dialog window, and it will show a list of paths from any currently open Directory Opus and/or Windows Explorer windows.
 ;
 ; Source Repo: https://github.com/ThioJoe/D-Opus-Scripts
 ; Parts of the logic from this script: https://gist.github.com/akaleeroy/f23bd4dd2ddae63ece2582ede842b028#file-currently-opened-folders-md
