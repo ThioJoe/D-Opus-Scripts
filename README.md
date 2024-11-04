@@ -36,3 +36,7 @@
 - **FullShortcutTargetColumn.vbs:** This script adds a column that displays the full target path for shortcuts (.lnk files), including arguments.
 
 - **VerifySignature:** Adds a column that shows the digital signature status of files using either FastSigCheck or SignTool.
+
+## Other Tools/Scripts
+
+- **ExplorerDialogPathSelector.ahk:** Lets you press a key (default middle mouse) within an Explorer Save/Open dialog window, and it will show a list of paths from any currently open Directory Opus and/or Windows Explorer windows.
