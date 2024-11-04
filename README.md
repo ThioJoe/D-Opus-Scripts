@@ -39,4 +39,4 @@
 
 ## Other Tools/Scripts
 
-- **ExplorerDialogPathSelector.ahk:** Lets you press a key (default middle mouse) within an Explorer Save/Open dialog window, and it will show a list of paths from any currently open Directory Opus and/or Windows Explorer windows.
+- **ExplorerDialogPathSelector.ahk:** Autohotkey V2 Script that lets you press a key (default middle mouse) within an Explorer Save/Open dialog window, and it will show a list of paths from any currently open Directory Opus and/or Windows Explorer windows.
