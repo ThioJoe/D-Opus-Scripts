@@ -1,15 +1,15 @@
 // Copies files or folders full paths to clipboard with quotes around it if it has spaces. Various optional behavior for multiple selected items
 // By ThioJoe
-// Updated: 9/1/24
+// Updated: 3/15/25
 
 // Discussion Thread / Latest Version: https://resource.dopus.com/t/scripts-to-copy-file-folder-name-s-or-path-s-with-automatic-surrounding-quotes-based-on-spaces/51122
 // Updates also available on my GitHub repo: https://github.com/ThioJoe/D-Opus-Scripts
 
 //   Arguments Template (Must put this in the 'Template' box in the command editor to use arguments):
-//   MULTILINE_QUOTE_MODE/O,SINGLE_ITEM_QUOTE_MODE/O,FOLDER_TERMINATOR/O,RESOLVE_SYMLINKS/O
+//   MULTILINE_QUOTE_MODE/K[auto,always,never],SINGLE_ITEM_QUOTE_MODE/K[auto,always,never],RESOLVE_SYMLINKS/K[none,symlinkedFiles,symlinkedFolders,both],FOLDER_TERMINATOR/O,PREPEND_INSIDE_QUOTES/K,PREPEND_OUTSIDE_QUOTES/K,APPEND_INSIDE_QUOTES/K,APPEND_OUTSIDE_QUOTES/K
 
 //   Example usage of arguments:
-//   Copy_File_Paths_Auto_Quoted MULTILINE_QUOTE_MODE="never" SINGLE_ITEM_QUOTE_MODE="auto" FOLDER_TERMINATOR="\" RESOLVE_SYMLINKS="both"
+//   Copy_File_Paths_Auto_Quoted MULTILINE_QUOTE_MODE="never" SINGLE_ITEM_QUOTE_MODE="auto" FOLDER_TERMINATOR="\" RESOLVE_SYMLINKS="both" PREPEND_OUTSIDE_QUOTES="prefix_" APPEND_INSIDE_QUOTES="_suffix"
 
 function OnClick(clickData) {
     //------------ Options (Note: If arguments are used when calling the script, these values will be overrided by the arguments) ------------
@@ -29,6 +29,18 @@ function OnClick(clickData) {
     // Possible values: none, symlinkedFiles, symlinkedFolders, both
     // >  Optional Argument Name: RESOLVE_SYMLINKS (string value)
     var resolveSymlinks = "none";
+    // prependInsideQuotes: String to prepend to each file path inside quotes
+    // >  Optional Argument Name: PREPEND_INSIDE_QUOTES (string value)
+    var prependInsideQuotes = "";
+    // prependOutsideQuotes: String to prepend to each file path outside quotes
+    // >  Optional Argument Name: PREPEND_OUTSIDE_QUOTES (string value)
+    var prependOutsideQuotes = "";
+    // appendInsideQuotes: String to append to each file path inside quotes
+    // >  Optional Argument Name: APPEND_INSIDE_QUOTES (string value)
+    var appendInsideQuotes = "";
+    // appendOutsideQuotes: String to append to each file path outside quotes
+    // >  Optional Argument Name: APPEND_OUTSIDE_QUOTES (string value)
+    var appendOutsideQuotes = "";
     //---------------------------------
     
     var tab = clickData.func.sourcetab;
@@ -80,6 +92,31 @@ function OnClick(clickData) {
         //DOpus.Output("Received FOLDER_TERMINATOR argument");
     }
 
+    if (clickData.func.args.got_arg.PREPEND_INSIDE_QUOTES) {
+        prependInsideQuotes = clickData.func.args.PREPEND_INSIDE_QUOTES;
+        //DOpus.Output("Received PREPEND_INSIDE_QUOTES argument: " + String(prependInsideQuotes));
+    }
+
+    if (clickData.func.args.got_arg.PREPEND_OUTSIDE_QUOTES) {
+        prependOutsideQuotes = clickData.func.args.PREPEND_OUTSIDE_QUOTES;
+        //DOpus.Output("Received PREPEND_OUTSIDE_QUOTES argument: " + String(prependOutsideQuotes));
+    }
+
+    if (clickData.func.args.got_arg.APPEND_INSIDE_QUOTES) {
+        appendInsideQuotes = clickData.func.args.APPEND_INSIDE_QUOTES;
+        //DOpus.Output("Received APPEND_INSIDE_QUOTES argument: " + String(appendInsideQuotes));
+    }
+
+    if (clickData.func.args.got_arg.APPEND_OUTSIDE_QUOTES) {
+        appendOutsideQuotes = clickData.func.args.APPEND_OUTSIDE_QUOTES;
+        //DOpus.Output("Received APPEND_OUTSIDE_QUOTES argument: " + String(appendOutsideQuotes));
+    }
+
+	// Normalize variables to lower case
+	multiLineQuoteMode = multiLineQuoteMode.toLowerCase();
+	singleItemQuoteMode = singleItemQuoteMode.toLowerCase();
+	resolveSymlinks = resolveSymlinks.toLowerCase();
+
     var clipboardText = "";
     // If single item is selected
     if (selectedItems.count == 1) {
@@ -97,10 +134,10 @@ function OnClick(clickData) {
         }
         // If no spaces in the file path or option set to not use quotes
         if (singleItemQuoteMode != "always" && (filePath.indexOf(" ") == -1 || singleItemQuoteMode == "never")) {
-            clipboardText = filePath;
+            clipboardText = prependOutsideQuotes + prependInsideQuotes + filePath + appendInsideQuotes + appendOutsideQuotes;
         } else {
             // File path contains spaces or option set to always use quotes
-            clipboardText = '"' + filePath + '"';
+            clipboardText = prependOutsideQuotes + '"' + prependInsideQuotes + filePath + appendInsideQuotes + '"' + appendOutsideQuotes;
         }
     } else {
         // Multiple items selected
@@ -121,11 +158,11 @@ function OnClick(clickData) {
                 clipboardText += "\n";
             }
             if (multiLineQuoteMode === "always") {
-                clipboardText += '"' + filePath + '"';
+                clipboardText += prependOutsideQuotes + '"' + prependInsideQuotes + filePath + appendInsideQuotes + '"' + appendOutsideQuotes;
             } else if (multiLineQuoteMode === "auto" && filePath.indexOf(" ") !== -1) {
-                clipboardText += '"' + filePath + '"';
+                clipboardText += prependOutsideQuotes + '"' + prependInsideQuotes + filePath + appendInsideQuotes + '"' + appendOutsideQuotes;
             } else {
-                clipboardText += filePath;
+                clipboardText += prependOutsideQuotes + prependInsideQuotes + filePath + appendInsideQuotes + appendOutsideQuotes;
             }
         }
     }
