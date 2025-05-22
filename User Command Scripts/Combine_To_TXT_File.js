@@ -126,9 +126,17 @@ function OnClick(clickData) {
             var folderEnum = DOpus.FSUtil.ReadDir(inputDir, "r");
             while (!folderEnum.complete) {
                 var item = folderEnum.next();
+                // Only want to add files, not folders
                 if (item.is_dir) {
                     continue;
                 }
+
+                // Skip empty files or else it will cause an error later
+                if (item.size == "0") {
+                    if (debugMode) { DOpus.Output("Skipping empty file: " + item.name); }
+                    continue;
+                }
+                
                 var inputDirPathObj = DOpus.FSUtil.NewPath(inputDir);
                 filesArray.push({
                     name: item.name,
@@ -149,6 +157,11 @@ function OnClick(clickData) {
                     if (item.is_dir) {
                         continue;
                     }
+                    // Skip empty files or else it will cause an error later
+                    if (item.size == "0") {
+                        if (debugMode) { DOpus.Output("Skipping empty file: " + item.name); }
+                        continue;
+                    }
                     filesArray.push({
                         name: item.name,
                         path: item.realpath,
@@ -167,6 +180,13 @@ function OnClick(clickData) {
         var e = new Enumerator(selectedFiles);
         for (; !e.atEnd(); e.moveNext()) {
             var item = e.item();
+            
+            // Skip empty files or else it will cause an error later
+            if (item.size == "0") {
+                if (debugMode) { DOpus.Output("Skipping empty file: " + item.name); }
+                continue;
+            }
+            
             filesArray.push({
                 name: item.name,
                 path: item.realpath,
@@ -232,6 +252,7 @@ function OnClick(clickData) {
         progress.SetName(file.name);
         progress.SetType("file");
         var header;
+        
         if (useRelativePath) {
             header = "\\" + file.relativePath;
             if (hideExtensions) {
@@ -240,6 +261,7 @@ function OnClick(clickData) {
         } else {
             header = hideExtensions ? file.name.replace(/\.[^\.]*$/, '') : file.name;
         }
+        
         if (debugMode) {
             outputFile.WriteLine(header);
         } else {
