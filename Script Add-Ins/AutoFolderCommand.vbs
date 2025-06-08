@@ -1,5 +1,5 @@
 ﻿' Script to automatically run Directory Opus commands when entering specific paths with several options.
-' Version: 1.1.1 - 6/8/25
+' Version: 1.1.2 - 6/8/25
 ' Author: ThioJoe (https://github.com/ThioJoe)
 '
 ' Available at GitHub repo: https://github.com/ThioJoe/D-Opus-Scripts
@@ -9,7 +9,7 @@ Option Explicit
 
 Function OnInit(initData)
     initData.name = "Auto Commands For Specific Folders"
-    initData.version = "1.1"
+    initData.version = "1.1.2"
     initData.desc = "Automatically run specified commands when entering or leaving configured folders."
     initData.default_enable = true
     initData.min_version = "13.0"
@@ -97,7 +97,10 @@ Function ParseFolderCommandPairs()
     path = ""
     entryCommand = ""
     leaveCommand = ""
-    switches = Array(False, False, False) ' Array of Bools Per Switch: [AlwaysRunEntry, AlwaysRunLeave, DontResolvePath]
+    
+    ' Opus Vector of Bools Per Switch: [AlwaysRunEntry, AlwaysRunLeave, DontResolvePath]
+    ' Using a Vector instead of VBS array because we'll eventually be storing this in script.vars, though nested within a Map
+    Set switches = DOpus.Create.Vector(False, False, False) 
     
     For Each line In pairs
         line = Trim(line)
@@ -123,12 +126,12 @@ Function ParseFolderCommandPairs()
                 If Left(key, 4) = "path" Then
                     ' We found a new 'path=' line, so save the accumulated commands for the current path before moving on and starting a new group
                     If path <> "" Then
-                        result(path) = Array(entryCommand, leaveCommand, switches)
+                        result(path) = DOpus.Create.Vector(entryCommand, leaveCommand, switches)
                         DebugOutput 2, "Added pair - Path: " & path & ", EntryCommand: " & entryCommand & ", LeaveCommand: " & leaveCommand & ", Switches: AlwaysRunEntry=" & switches(0) & ", AlwaysRunLeave=" & switches(1) & ", DontResolvePath=" & switches(2)
                         ' Reset the variables for the next group
                         entryCommand = ""
                         leaveCommand = ""
-                        switches = Array(False, False, False)
+                        Set switches = DOpus.Create.Vector(False, False, False)
                     End If
 
                     path = value  ' Store raw path, will resolve in the other loop later depending on switches
@@ -166,7 +169,7 @@ Function ParseFolderCommandPairs()
     
     ' Add the last path if there is one
     If path <> "" Then
-        result(path) = Array(entryCommand, leaveCommand, switches)
+        result(path) = DOpus.Create.Vector(entryCommand, leaveCommand, switches)
         DebugOutput 2, "Added pair - Path: " & path & ", EntryCommand: " & entryCommand & ", LeaveCommand: " & leaveCommand & ", Switches: AlwaysRunEntry=" & switches(0) & ", AlwaysRunLeave=" & switches(1) & ", DontResolvePath=" & switches(2)
     End If
 
@@ -177,7 +180,8 @@ Function ParseFolderCommandPairs()
     '    If set to not resolve, then paths like lib:// will not be changed to the absolute drive path
     Dim pathKey
     For Each pathKey in result
-        Dim pathData: pathData = result(pathKey)
+        Dim pathData
+        Set pathData = result(pathKey)
         Dim resolvedPath
         
         ' Check if this path should be resolved (based on DontResolvePath switch)
@@ -247,7 +251,7 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
         Dim wildPath: Set wildPath = fsu.NewWild(TerminatePath(folderPattern), "d")
         DebugOutput 3, "- Checking With Pattern: " & folderPattern
         
-        commandArray = folderCommandPairs(folderPattern)
+        Set commandArray = folderCommandPairs(folderPattern)
         Dim alwaysRunLeave: alwaysRunLeave = commandArray(2)(1) ' AlwaysRunLeave switch is the second element in the switches array
         DebugOutput 3, "  alwaysRunLeave: " & alwaysRunLeave
         
@@ -310,7 +314,7 @@ Sub QueueEntryCommands(oldPath, newPath)
         Dim wildPath: Set wildPath = fsu.NewWild(TerminatePath(folderPattern), "d")
         DebugOutput 3, "- Checking With Pattern: " & folderPattern
         
-        commandArray = folderCommandPairs(folderPattern)
+        Set commandArray = folderCommandPairs(folderPattern)
         Dim alwaysRunEntry: alwaysRunEntry = commandArray(2)(0) ' AlwaysRunEntry switch is the first element in the switches array
         DebugOutput 3, "  alwaysRunEntry: " & alwaysRunEntry
         
