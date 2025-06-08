@@ -1,5 +1,5 @@
 ﻿' Script to automatically run Directory Opus commands when entering specific paths with several options.
-' Version: 1.1.2 - 6/8/25
+' Version: 1.2.0 - 6/8/25
 ' Author: ThioJoe (https://github.com/ThioJoe)
 '
 ' Available at GitHub repo: https://github.com/ThioJoe/D-Opus-Scripts
@@ -52,7 +52,7 @@ Function OnInit(initData)
     
     ' Disable variable cache for debugging
     config.DisableCache = False
-    config_desc("DisableCache") = "Disables using Script.Vars cache and re-parses config on every instance. You might need to enable this temporarily after changing the config."
+    config_desc("DisableCache") = "Disables using Script.Vars cache and re-parses config on every instance. Only meant for debugging."
     config_groups("DisableCache") = "2 - Options"
 
     initData.config_desc = config_desc
@@ -235,6 +235,7 @@ Function ParseFolderCommandPairs()
     
     ' Cache the result
     Script.vars.Set "CachedFolderCommandPairs", resolvedResult
+    DebugOutput 1, "Commands parsed and cached. Total pairs: " & resolvedResult.Count
     
     Set ParseFolderCommandPairs = resolvedResult
 
@@ -489,4 +490,17 @@ Function OnActivateTab(activateTabData)
     ' Queue and execute entry commands immediately for tab activation
     QueueEntryCommands oldPath, newPath
     ExecuteQueuedEntryCommands activateTabData.newtab
+End Function
+
+Function OnScriptConfigChange(scriptConfigChangeData)
+    DebugOutput 1, "OnScriptConfigChange triggered - Config has changed, resetting script cache"
+    
+    ' Clear the cached folder command pairs to force re-parsing on next folder change
+    If Script.vars.Exists("CachedFolderCommandPairs") Then
+        Script.vars.Delete "CachedFolderCommandPairs"
+        DebugOutput 2, "Cleared cached folder command pairs due to config change."
+    End If
+    
+    ' Optionally, you can re-parse the config here if needed
+    ParseFolderCommandPairs()
 End Function
