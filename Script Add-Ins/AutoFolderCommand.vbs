@@ -79,6 +79,37 @@ Sub DebugOutput(level, message)
     End If
 End Sub
 
+' Data Structure Explanation: 
+' The script parses the user configuration into a 'Map' object (like a dictionary), with the structure described below.
+' 
+'     1. It is initially created in the function 'ParseFolderCommandPairs()' and named 'result' by parsing the user config in ParseFolderCommandPairs, 
+'           and paths are further processed/resolved, and so the data is put into another intermediate version called 'resolvedResult'
+'     2. At the end of ParseFolderCommandPairs(), resolvedResult is cached into script.vars as "CachedFolderCommandPairs", and returned from the function
+'     3. Whenever changing directories, ParseFolderCommandPairs() is called by various event handlers to return the Map. 
+'           The cache will be used if available to avoid re-running all the logic.
+'     4. The returned Map is assigned to folderCommandPairs, and the path is checked against each key in the Map
+'           When looping the paths to check, in each iteration the 2D vector (array) is assigned as commandArray
+'
+' ---- Structure of the primary Map storing path and command info (aka result, resolvedResult, CachedFolderCommandPairs, folderCommandPairs) ----
+'
+'   Key: (String) The folder path pattern to match.
+'   |
+'   --- Value: (Vector) A Vector containing 3 items.
+'       |
+'       --- [0]: (String) The command to run on folder entry.
+'       |
+'       --- [1]: (String) The command to run on folder leave.
+'       |
+'       --- [2]: (Vector) A nested Vector containing the 3 boolean switch states.
+'           |
+'           --- [0]: (Boolean) AlwaysRunEntry
+'           |
+'           --- [1]: (Boolean) AlwaysRunLeave
+'           |
+'           --- [2]: (Boolean) DontResolvePath
+'       |
+'       --- [3]: (Wild) Wildcard object for pattern matching the path
+
 Function ParseFolderCommandPairs()
     ' Check if we have cached folder command pairs and if caching is not disabled
     If Not Script.config.DisableCache And Script.vars.Exists("CachedFolderCommandPairs") Then
@@ -182,7 +213,7 @@ Function ParseFolderCommandPairs()
     For Each pathKey in result
         Dim pathData
         Set pathData = result(pathKey)
-        Dim resolvedPath
+        Dim resolvedPath, wildPath
         
         ' Check if this path should be resolved (based on DontResolvePath switch)
         If pathData(2)(2) Then  ' switches(2) is DontResolvePath
@@ -194,8 +225,12 @@ Function ParseFolderCommandPairs()
             DebugOutput 3, "   > Resolved to: " & resolvedPath
         End If
         
-        ' Add to new dictionary with resolved path
-        resolvedResult(resolvedPath) = pathData
+        ' Create the Wild object for this path
+        Set wildPath = DOpus.FSUtil.NewWild(TerminatePath(resolvedPath), "d")
+        
+        ' Create a new vector that includes the original data plus the wildPath object
+        ' Then add to the new dictionary that uses the final resolved paths
+        resolvedResult(resolvedPath) = DOpus.Create.Vector(pathData(0), pathData(1), pathData(2), wildPath)
     Next
     
     ' Cache the result
@@ -237,21 +272,21 @@ Function TerminatePath(p)
 End Function
 
 Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
-    Dim fsu, folderPattern, commandArray
-    Set fsu = DOpus.FSUtil
+    Dim folderPattern, commandArray, wildPath
 
     Dim folderCommandPairs: Set folderCommandPairs = ParseFolderCommandPairs()
     Dim leaveCommands: Set leaveCommands = DOpus.Create.Map
     
-    DebugOutput 3, "*****************************************************"
+    DebugOutput 3, "*********************** CheckAndExecuteLeaveCommands ******************************"
     'DebugOutput 3, "------------------------------------------"
     DebugOutput 3, "Testing For Leave Commands:"
     
     For Each folderPattern In folderCommandPairs
-        Dim wildPath: Set wildPath = fsu.NewWild(TerminatePath(folderPattern), "d")
         DebugOutput 3, "- Checking With Pattern: " & folderPattern
         
         Set commandArray = folderCommandPairs(folderPattern)
+        Set wildPath = commandArray(3)
+        
         Dim alwaysRunLeave: alwaysRunLeave = commandArray(2)(1) ' AlwaysRunLeave switch is the second element in the switches array
         DebugOutput 3, "  alwaysRunLeave: " & alwaysRunLeave
         
@@ -288,33 +323,36 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
     Next
 
     ' Execute leave commands
-    For Each folderPattern In leaveCommands
-        DebugOutput 3, "------------------------------------------"
-        DebugOutput 2, "Running leave command for path: " & folderPattern
-        DebugOutput 2, "   Leave command: " & leaveCommands(folderPattern)
-        
+    If leaveCommands.Count > 0 Then
         Dim leaveCmd
         Set leaveCmd = DOpus.Create.Command
         leaveCmd.SetSourceTab sourceTab
-        leaveCmd.RunCommand leaveCommands(folderPattern)
-    Next
+        
+        For Each folderPattern In leaveCommands
+            DebugOutput 3, "------------------------------------------"
+            DebugOutput 2, "Running leave command for path: " & folderPattern
+            DebugOutput 2, "   Leave command: " & leaveCommands(folderPattern)
+            
+            leaveCmd.RunCommand leaveCommands(folderPattern)
+        Next
+    End If
+    
 End Sub
 
 Sub QueueEntryCommands(oldPath, newPath)
-    Dim fsu, folderPattern, commandArray
-    Set fsu = DOpus.FSUtil
+    Dim folderPattern, commandArray, wildPath
 
     Dim folderCommandPairs: Set folderCommandPairs = ParseFolderCommandPairs()
     Dim enterCommands: Set enterCommands = DOpus.Create.Map
     
-    DebugOutput 3, "*****************************************************"
+    DebugOutput 3, "*********************** QueueEntryCommands() ******************************"
     DebugOutput 3, "Testing For Entry Commands: "
     
     For Each folderPattern In folderCommandPairs
-        Dim wildPath: Set wildPath = fsu.NewWild(TerminatePath(folderPattern), "d")
         DebugOutput 3, "- Checking With Pattern: " & folderPattern
         
         Set commandArray = folderCommandPairs(folderPattern)
+        Set wildPath = commandArray(3)
         Dim alwaysRunEntry: alwaysRunEntry = commandArray(2)(0) ' AlwaysRunEntry switch is the first element in the switches array
         DebugOutput 3, "  alwaysRunEntry: " & alwaysRunEntry
         
@@ -357,6 +395,8 @@ Sub QueueEntryCommands(oldPath, newPath)
 End Sub
 
 Sub ExecuteQueuedEntryCommands(sourceTab)
+    DebugOutput 3, "ExecuteQueuedEntryCommands entered."
+
     If Script.vars.Exists("PendingEntryCommands") Then
         Dim enterCommands: Set enterCommands = Script.vars.Get("PendingEntryCommands")
         
@@ -365,29 +405,29 @@ Sub ExecuteQueuedEntryCommands(sourceTab)
             DebugOutput 3, "------------------------------------------"
             ' Execute entry commands
             Dim folderPattern
+            Dim enterCmd
+            Set enterCmd = DOpus.Create.Command
+            enterCmd.SetSourceTab sourceTab
+
             For Each folderPattern In enterCommands
                 DebugOutput 2, "Running entry command for path: " & folderPattern
                 DebugOutput 2, "   Entry command: " & enterCommands(folderPattern)
-                
-                Dim enterCmd
-                Set enterCmd = DOpus.Create.Command
-                enterCmd.SetSourceTab sourceTab
                 enterCmd.RunCommand enterCommands(folderPattern)
             Next
 
             ' Clear pending entry commands
             Script.vars.Delete "PendingEntryCommands"
         Else
-            DebugOutput 3, "OnAfterFolderChange - No entry commands were run. (PendingEntryCommands was empty)"
+            DebugOutput 3, "ExecuteQueuedEntryCommands - No entry commands were run. (PendingEntryCommands was empty)"
         End If
     Else
-        DebugOutput 3, "OnAfterFolderChange - No entry commands were run. (PendingEntryCommands was not set)"
+        DebugOutput 3, "ExecuteQueuedEntryCommands - No entry commands were run. (PendingEntryCommands was not set)"
     End If
 End Sub
 
 Function OnBeforeFolderChange(beforeFolderChangeData)
     If Script.config.DebugLevel >= 2 Then
-        DOpus.Output "=====================================  Folder Change ====================================="
+        DOpus.Output "===================================== Folder Change (OnBeforeFolderChange) ====================================="
     End If
     
     Dim currentPath, newPath
@@ -409,6 +449,7 @@ Function OnBeforeFolderChange(beforeFolderChangeData)
 End Function
 
 Function OnAfterFolderChange(afterFolderChangeData)
+    DebugOutput 3, "onAfterFolderChange triggered"
     If Not afterFolderChangeData.result Then
         DebugOutput 2, "Folder change failed, not executing entry commands"
         Exit Function
@@ -419,7 +460,7 @@ End Function
 
 Function OnActivateTab(activateTabData)
     If Script.config.DebugLevel >= 2 Then
-        DOpus.Output "===================================== Tab Activation ====================================="
+        DOpus.Output "===================================== Tab Activation (OnActivateTab) ====================================="
     End If
     
     Dim oldPath, newPath
