@@ -272,62 +272,107 @@ Function TerminatePath(p)
     DebugOutput 3, "   > TerminatePath: Before = " & p & ", After = " & TerminatePath
 End Function
 
-Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
+Sub ProcessFolderChangeCommands(oldPath, newPath, oldSourceTab, newSourceTab)
     Dim folderPattern, commandArray, wildPath
-
     Dim folderCommandPairs: Set folderCommandPairs = ParseFolderCommandPairs()
     Dim leaveCommands: Set leaveCommands = DOpus.Create.Map
+    Dim enterCommands: Set enterCommands = DOpus.Create.Map
     
-    DebugOutput 3, "*********************** CheckAndExecuteLeaveCommands ******************************"
+    DebugOutput 3, "************** ProcessFolderChangeCommands **************"
     'DebugOutput 3, "------------------------------------------"
-    DebugOutput 3, "Testing For Leave Commands:"
+    DebugOutput 3, "  Old Path: " & oldPath
+    DebugOutput 3, "  New Path: " & newPath
+
+    Dim leaveCmd
+    Dim enterCmd
     
     For Each folderPattern In folderCommandPairs
-        DebugOutput 3, "- Checking With Pattern: " & folderPattern
+        DebugOutput 4, "- Checking With Pattern: " & folderPattern
         
         Set commandArray = folderCommandPairs(folderPattern)
         Set wildPath = commandArray(3)
         
-        Dim alwaysRunLeave: alwaysRunLeave = commandArray(2)(1) ' AlwaysRunLeave switch is the second element in the switches array
-        DebugOutput 3, "  alwaysRunLeave: " & alwaysRunLeave
+        ' --- Check for LEAVE command ---
+        Dim alwaysRunLeave: alwaysRunLeave = commandArray(2)(1) ' AlwaysRunLeave switch is the second element in the switches array 
+        DebugOutput 4, "  alwaysRunLeave: " & alwaysRunLeave
         
-        ' Check for leaving a matched folder
         If wildPath.Match(oldPath) Then
-            DebugOutput 3, "    > Match Found For Old Path -- " & oldPath
+            DebugOutput 4, "    > LEAVE: Match Found For Old Path -- " & oldPath
             
             Dim shouldRunLeaveCommand: shouldRunLeaveCommand = False
             
             If newPath = "" Then
-                DebugOutput 3, "    > New path is empty, will queue leave command"
+                DebugOutput 4, "    > New path is empty, will queue leave command"
                 shouldRunLeaveCommand = True
             ElseIf Not wildPath.Match(newPath) Then
-                DebugOutput 3, "    > No Match For New Path, queuing leave command -- " & newPath
+                DebugOutput 4, "    > No Match For New Path, queuing leave command -- " & newPath
                 shouldRunLeaveCommand = True
             ElseIf alwaysRunLeave Then
-                DebugOutput 3, "    > New Path matched so leave command wouldn't have been queued, but queuing anyway because AlwaysRunLeave is True"
+                DebugOutput 4, "    > New Path matched so leave command wouldn't have been queued, but queuing anyway because AlwaysRunLeave is True"
                 shouldRunLeaveCommand = True
             Else
-                DebugOutput 3, "    > Match found for new path and AlwaysRunLeave is False, not queuing leave command: " & newPath
+                DebugOutput 4, "    > Match found for new path and AlwaysRunLeave is False, not queuing leave command: " & newPath
             End If
             
             If shouldRunLeaveCommand Then
                 If commandArray(1) <> "" Then
-                    DebugOutput 3, "Queuing leave command for path: " & folderPattern
+                    DebugOutput 4, "Queuing leave command for path: " & folderPattern
                     leaveCommands(folderPattern) = commandArray(1)
                 Else
-                    DebugOutput 3, "Tried to run leave command, but no leave command set for pattern: " & folderPattern
+                    DebugOutput 4, "Tried to run leave command, but no leave command set for pattern: " & folderPattern
                 End If
             End If
         Else
-            DebugOutput 3, "    > No match for oldPath, not queuing leave command"
+            DebugOutput 4, "    > LEAVE: No match for oldPath, not queuing leave command"
+        End If
+
+        ' --- Check for ENTRY command ---
+        Dim alwaysRunEntry: alwaysRunEntry = commandArray(2)(0)
+        DebugOutput 4, "  alwaysRunEntry: " & alwaysRunEntry
+        
+        Dim shouldRunEntryCommand
+        shouldRunEntryCommand = False
+        
+        If wildPath.Match(newPath) Then
+            DebugOutput 4, "    > ENTRY: Match Found For New Path -- " & newPath
+            
+            If oldPath = "" Then
+                DebugOutput 4, "oldPath is empty - No need to check if still inside rule match, will queue entry command"
+                shouldRunEntryCommand = True ' 
+            ElseIf Not wildPath.Match(oldPath) Then
+                DebugOutput 4, "    > No Match For Old Path, queuing command -- " & oldPath
+                shouldRunEntryCommand = True
+            ElseIf alwaysRunEntry Then
+                DebugOutput 4, "    > Old path matched so entry command would not have been queued, but queuing anyway because AlwaysRunEntry is True"
+                shouldRunEntryCommand = True
+            Else
+                DebugOutput 4, "    > Match Found For Old Path and AlwaysRunEntry is False, not queuing entry command -- " & oldPath
+            End If
+        Else
+            DebugOutput 4, "    > ENTRY: No Match For New Path, not queuing entry command -- " & newPath
+        End If
+        
+        If shouldRunEntryCommand Then
+            If commandArray(0) <> "" Then
+                DebugOutput 4, "Queuing entry command for path: " & folderPattern
+                enterCommands(folderPattern) = commandArray(0)
+            Else
+                DebugOutput 4, "Tried to run entry command, but no entry command set for pattern: " & folderPattern
+            End If
         End If
     Next
 
     ' Execute leave commands
     If leaveCommands.Count > 0 Then
-        Dim leaveCmd
+        
+        
         Set leaveCmd = DOpus.Create.Command
-        leaveCmd.SetSourceTab sourceTab
+
+        If Not IsBlank(oldSourceTab) Then
+            leaveCmd.SetSourceTab oldSourceTab
+        Else
+            DebugOutput 3, "No previous source tab (previous tab may have closed). Using new tab instead."
+        End If
         
         For Each folderPattern In leaveCommands
             DebugOutput 3, "------------------------------------------"
@@ -338,125 +383,95 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
         Next
     End If
     
-End Sub
+    ' Check if enterCommands is not empty
+    If enterCommands.Count > 0 Then
+        ' Execute entry commands
+        
+        Set enterCmd = DOpus.Create.Command
 
-Sub QueueEntryCommands(oldPath, newPath)
-    Dim folderPattern, commandArray, wildPath
-
-    Dim folderCommandPairs: Set folderCommandPairs = ParseFolderCommandPairs()
-    Dim enterCommands: Set enterCommands = DOpus.Create.Map
-    
-    DebugOutput 3, "*********************** QueueEntryCommands() ******************************"
-    DebugOutput 3, "Testing For Entry Commands: "
-    
-    For Each folderPattern In folderCommandPairs
-        DebugOutput 3, "- Checking With Pattern: " & folderPattern
-        
-        Set commandArray = folderCommandPairs(folderPattern)
-        Set wildPath = commandArray(3)
-        Dim alwaysRunEntry: alwaysRunEntry = commandArray(2)(0) ' AlwaysRunEntry switch is the first element in the switches array
-        DebugOutput 3, "  alwaysRunEntry: " & alwaysRunEntry
-        
-        Dim shouldQueueCommand
-        shouldQueueCommand = False
-        
-        ' Check for entering a matched folder
-        If wildPath.Match(newPath) Then
-            DebugOutput 3, "    > Match Found For New Path -- " & newPath
-            
-            If oldPath = "" Then
-                DebugOutput 3, "oldPath is empty - No need to check if still inside rule match, will queue entry command"
-                shouldQueueCommand = True
-            ElseIf Not wildPath.Match(oldPath) Then
-                DebugOutput 3, "    > No Match For Old Path, queuing command -- " & oldPath
-                shouldQueueCommand = True
-            ElseIf alwaysRunEntry Then
-                DebugOutput 3, "    > Old path matched so entry command would not have been queued, but queuing anyway because AlwaysRunEntry is True"
-                shouldQueueCommand = True
-            Else
-                DebugOutput 3, "    > Match Found For Old Path and AlwaysRunEntry is False, not queuing entry command -- " & oldPath
-            End If
-        Else
-            DebugOutput 3, "    > No Match For New Path, not queuing entry command -- " & newPath
+        If Not IsBlank(newSourceTab) Then
+            enterCmd.SetSourceTab newSourceTab
         End If
-        
-        ' Queue entry command if applicable
-        If shouldQueueCommand Then
-            If commandArray(0) <> "" Then
-                DebugOutput 3, "Queuing entry command for path: " & folderPattern
-                enterCommands(folderPattern) = commandArray(0)
-            Else
-                DebugOutput 3, "Tried to run entry command, but no entry command set for pattern: " & folderPattern
-            End If
-        End If
-    Next
 
-    ' Store enter commands in Script.vars for later execution
-    Script.vars.Set "PendingEntryCommands", enterCommands
-End Sub
-
-Sub ExecuteQueuedEntryCommands(sourceTab)
-    DebugOutput 3, "ExecuteQueuedEntryCommands entered."
-
-    If Script.vars.Exists("PendingEntryCommands") Then
-        Dim enterCommands: Set enterCommands = Script.vars.Get("PendingEntryCommands")
-        
-        ' Check if enterCommands is not empty
-        If enterCommands.Count > 0 Then
+        For Each folderPattern In enterCommands
             DebugOutput 3, "------------------------------------------"
-            ' Execute entry commands
-            Dim folderPattern
-            Dim enterCmd
-            Set enterCmd = DOpus.Create.Command
-            enterCmd.SetSourceTab sourceTab
-
-            For Each folderPattern In enterCommands
-                DebugOutput 2, "Running entry command for path: " & folderPattern
-                DebugOutput 2, "   Entry command: " & enterCommands(folderPattern)
-                enterCmd.RunCommand enterCommands(folderPattern)
-            Next
-
-            ' Clear pending entry commands
-            Script.vars.Delete "PendingEntryCommands"
-        Else
-            DebugOutput 3, "ExecuteQueuedEntryCommands - No entry commands were run. (PendingEntryCommands was empty)"
-        End If
+            DebugOutput 2, "Running entry command for path: " & folderPattern
+            DebugOutput 2, "   Entry command: " & enterCommands(folderPattern)
+            enterCmd.RunCommand enterCommands(folderPattern)
+        Next
     Else
-        DebugOutput 3, "ExecuteQueuedEntryCommands - No entry commands were run. (PendingEntryCommands was not set)"
+        DebugOutput 4, "No matching entry commands to run."
     End If
 End Sub
 
 Function OnBeforeFolderChange(beforeFolderChangeData)
     If Script.config.DebugLevel >= 2 Then
-        DOpus.Output "===================================== Folder Change (OnBeforeFolderChange) ====================================="
+        DOpus.Output "===================================== Folder Change (OnBeforeFolderChange)  ====================================="
     End If
     
-    Dim currentPath, newPath
+    Dim currentPath
     currentPath = TerminatePath(beforeFolderChangeData.tab.path)
-    newPath = TerminatePath(beforeFolderChangeData.path)
 
-    DebugOutput 2, "OnBeforeFolderChange - Current path : " & currentPath
-    DebugOutput 2, "OnBeforeFolderChange - New path     : " & newPath
-
-    ' Execute leave commands
-    DebugOutput 2, "------------------------------------------"
-    CheckAndExecuteLeaveCommands currentPath, newPath, beforeFolderChangeData.tab
-
-    ' Queue entry commands for execution in OnAfterFolderChange
-    QueueEntryCommands currentPath, newPath
+    ' Just store the current path in a variable for later use. Don't do any extra processing to prevent blocking the folder change.
+    Script.vars.Set "PreviousPath", currentPath
+    DebugOutput 3, "OnBeforeFolderChange - Current path : " & currentPath
 
     ' Allow the folder change to proceed
     OnBeforeFolderChange = False
 End Function
 
 Function OnAfterFolderChange(afterFolderChangeData)
-    DebugOutput 3, "onAfterFolderChange triggered"
+    If Script.config.DebugLevel >= 2 Then
+        DOpus.Output "===================================== Folder Change (OnAfterFolderChange) ====================================="
+    End If
+
     If Not afterFolderChangeData.result Then
         DebugOutput 2, "Folder change failed, not executing entry commands"
         Exit Function
     End If
 
-    ExecuteQueuedEntryCommands afterFolderChangeData.tab
+    DebugOutput 3, "Folder change action: " & afterFolderChangeData.action
+
+    newPath = TerminatePath(afterFolderChangeData.tab.path)
+
+    Dim currentPath, newPath
+    If Script.vars.Exists("PreviousPath") Then
+        currentPath = Script.vars.Get("PreviousPath")
+        DebugOutput 2, "OnAfterFolderChange - Old path: " & currentPath
+    Else
+        DebugOutput 2, "OnAfterFolderChange - Old path: [None]"
+    End If
+    
+    DebugOutput 2, "OnAfterFolderChange - New path : " & newPath
+
+    ProcessFolderChangeCommands currentPath, newPath, afterFolderChangeData.tab, afterFolderChangeData.tab
+
+    Script.vars.Delete "PreviousPath" ' Clear the previous path after processing
+End Function
+
+' A universal function to check if a variable is empty, nothing, null, or zero.
+Function IsBlank(checkVar)
+    Dim varTypeName
+    varTypeName = TypeName(checkVar)
+    DebugOutput 4, "IsBlank called with variable of type: " & varTypeName
+    
+    If varTypeName = "Nothing" Then
+        IsBlank = True
+        DebugOutput 4, "IsBlank: Variable is Nothing"
+        Exit Function
+    End If
+
+    If varTypeName = "Object" Then
+        IsBlank = (checkVar Is Nothing)
+    ElseIf varTypeName = "Empty" Then
+        IsBlank = True
+    ElseIf varTypeName = "Null" Then
+        IsBlank = True
+    Else
+        ' For strings, numbers, booleans, etc.
+        ' Treats "" and 0 as blank.
+        IsBlank = (checkVar = "")
+    End If
 End Function
 
 Function OnActivateTab(activateTabData)
@@ -465,12 +480,18 @@ Function OnActivateTab(activateTabData)
     End If
     
     Dim oldPath, newPath
+
+    DOpus.Output "Type is " & TypeName(activateTabData)
+    DOpus.Output "DOpusType is " & DOpus.TypeOf(activateTabData)
+    DOpus.Output "oldtab Type is " & TypeName(activateTabData.oldtab)
+    DOpus.Output "oldtab DOpusType is " & DOpus.TypeOf(activateTabData.oldtab)
     
-    If Not activateTabData.oldtab Is Nothing Then
-        'DOpus.Output("OldTab: " + activateTabData.oldtab)
-        'DOpus.Output("OldTab Type: " + DOpus.TypeOf(activateTabData.oldtab))
-        'DOpus.Output("OldTab Path" + activateTabData.oldtab.Path)
-        oldPath = TerminatePath(activateTabData.oldtab.Path)
+    If Not IsBlank(activateTabData.oldtab) Then
+        If Not IsBlank(activateTabData.oldtab.path) Then
+            oldPath = TerminatePath(activateTabData.oldtab.Path)
+        Else
+            oldPath = ""
+        End If
     Else
         oldPath = ""
     End If
@@ -481,15 +502,23 @@ Function OnActivateTab(activateTabData)
         newPath = ""
     End If
 
+    Dim oldSourceTab
+    ' If the tab is closing, we use the old tab as the source for leave commands
+    If activateTabData.closing Then
+        Set oldSourceTab = Nothing
+        DebugOutput 3, "OnActivateTab - Previous tab closed."
+    ElseIf Not IsBlank(activateTabData.oldtab) Then
+        Set oldSourceTab = activateTabData.oldtab
+    Else
+        Set oldSourceTab = Nothing
+        DebugOutput 3, "OnActivateTab - No previous tab available."
+    End If
+
     DebugOutput 2, "OnActivateTab - Old path: " & oldPath
     DebugOutput 2, "OnActivateTab - New path: " & newPath
 
-    ' Execute leave commands
-    CheckAndExecuteLeaveCommands oldPath, newPath, activateTabData.oldtab
-
-    ' Queue and execute entry commands immediately for tab activation
-    QueueEntryCommands oldPath, newPath
-    ExecuteQueuedEntryCommands activateTabData.newtab
+    ' Execute leave commands and entry commands
+    ProcessFolderChangeCommands oldPath, newPath, oldSourceTab, activateTabData.newtab
 End Function
 
 Function OnScriptConfigChange(scriptConfigChangeData)
