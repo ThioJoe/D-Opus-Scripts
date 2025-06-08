@@ -1,5 +1,5 @@
 ﻿' Script to automatically run Directory Opus commands when entering specific paths with several options.
-' Version: 1.1.0 - 11/1/24
+' Version: 1.1.1 - 6/8/25
 ' Author: ThioJoe (https://github.com/ThioJoe)
 '
 ' Available at GitHub repo: https://github.com/ThioJoe/D-Opus-Scripts
@@ -91,7 +91,7 @@ Function ParseFolderCommandPairs()
     DebugOutput 2, "----------- BEGIN PARSE CONFIGS -----------"
 
     Dim pairs, line, path, entryCommand, leaveCommand, switches
-    Dim result: Set result = CreateObject("Scripting.Dictionary")
+    Dim result: Set result = DOpus.Create.Map
     
     pairs = Split(Script.Config.FolderCommandPairs, vbNewLine)
     path = ""
@@ -123,7 +123,7 @@ Function ParseFolderCommandPairs()
                 If Left(key, 4) = "path" Then
                     ' We found a new 'path=' line, so save the accumulated commands for the current path before moving on and starting a new group
                     If path <> "" Then
-                        result.Add path, Array(entryCommand, leaveCommand, switches)
+                        result(path) = Array(entryCommand, leaveCommand, switches)
                         DebugOutput 2, "Added pair - Path: " & path & ", EntryCommand: " & entryCommand & ", LeaveCommand: " & leaveCommand & ", Switches: AlwaysRunEntry=" & switches(0) & ", AlwaysRunLeave=" & switches(1) & ", DontResolvePath=" & switches(2)
                         ' Reset the variables for the next group
                         entryCommand = ""
@@ -166,17 +166,17 @@ Function ParseFolderCommandPairs()
     
     ' Add the last path if there is one
     If path <> "" Then
-        result.Add path, Array(entryCommand, leaveCommand, switches)
+        result(path) = Array(entryCommand, leaveCommand, switches)
         DebugOutput 2, "Added pair - Path: " & path & ", EntryCommand: " & entryCommand & ", LeaveCommand: " & leaveCommand & ", Switches: AlwaysRunEntry=" & switches(0) & ", AlwaysRunLeave=" & switches(1) & ", DontResolvePath=" & switches(2)
     End If
 
     ' Create a new dictionary to store resolved paths
-    Dim resolvedResult: Set resolvedResult = CreateObject("Scripting.Dictionary")
+    Dim resolvedResult: Set resolvedResult = DOpus.Create.Map
     
     ' Parse and resolve paths here after we know the switches so we can do so based on DontResolvePath switch
     '    If set to not resolve, then paths like lib:// will not be changed to the absolute drive path
     Dim pathKey
-    For Each pathKey in result.Keys
+    For Each pathKey in result
         Dim pathData: pathData = result(pathKey)
         Dim resolvedPath
         
@@ -191,7 +191,7 @@ Function ParseFolderCommandPairs()
         End If
         
         ' Add to new dictionary with resolved path
-        resolvedResult.Add resolvedPath, pathData
+        resolvedResult(resolvedPath) = pathData
     Next
     
     ' Cache the result
@@ -237,13 +237,13 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
     Set fsu = DOpus.FSUtil
 
     Dim folderCommandPairs: Set folderCommandPairs = ParseFolderCommandPairs()
-    Dim leaveCommands: Set leaveCommands = CreateObject("Scripting.Dictionary")
+    Dim leaveCommands: Set leaveCommands = DOpus.Create.Map
     
     DebugOutput 3, "*****************************************************"
     'DebugOutput 3, "------------------------------------------"
     DebugOutput 3, "Testing For Leave Commands:"
     
-    For Each folderPattern In folderCommandPairs.Keys
+    For Each folderPattern In folderCommandPairs
         Dim wildPath: Set wildPath = fsu.NewWild(TerminatePath(folderPattern), "d")
         DebugOutput 3, "- Checking With Pattern: " & folderPattern
         
@@ -273,7 +273,7 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
             If shouldRunLeaveCommand Then
                 If commandArray(1) <> "" Then
                     DebugOutput 3, "Queuing leave command for path: " & folderPattern
-                    leaveCommands.Add folderPattern, commandArray(1)
+                    leaveCommands(folderPattern) = commandArray(1)
                 Else
                     DebugOutput 3, "Tried to run leave command, but no leave command set for pattern: " & folderPattern
                 End If
@@ -284,7 +284,7 @@ Sub CheckAndExecuteLeaveCommands(oldPath, newPath, sourceTab)
     Next
 
     ' Execute leave commands
-    For Each folderPattern In leaveCommands.Keys
+    For Each folderPattern In leaveCommands
         DebugOutput 3, "------------------------------------------"
         DebugOutput 2, "Running leave command for path: " & folderPattern
         DebugOutput 2, "   Leave command: " & leaveCommands(folderPattern)
@@ -301,12 +301,12 @@ Sub QueueEntryCommands(oldPath, newPath)
     Set fsu = DOpus.FSUtil
 
     Dim folderCommandPairs: Set folderCommandPairs = ParseFolderCommandPairs()
-    Dim enterCommands: Set enterCommands = CreateObject("Scripting.Dictionary")
+    Dim enterCommands: Set enterCommands = DOpus.Create.Map
     
     DebugOutput 3, "*****************************************************"
     DebugOutput 3, "Testing For Entry Commands: "
     
-    For Each folderPattern In folderCommandPairs.Keys
+    For Each folderPattern In folderCommandPairs
         Dim wildPath: Set wildPath = fsu.NewWild(TerminatePath(folderPattern), "d")
         DebugOutput 3, "- Checking With Pattern: " & folderPattern
         
@@ -341,7 +341,7 @@ Sub QueueEntryCommands(oldPath, newPath)
         If shouldQueueCommand Then
             If commandArray(0) <> "" Then
                 DebugOutput 3, "Queuing entry command for path: " & folderPattern
-                enterCommands.Add folderPattern, commandArray(0)
+                enterCommands(folderPattern) = commandArray(0)
             Else
                 DebugOutput 3, "Tried to run entry command, but no entry command set for pattern: " & folderPattern
             End If
@@ -361,7 +361,7 @@ Sub ExecuteQueuedEntryCommands(sourceTab)
             DebugOutput 3, "------------------------------------------"
             ' Execute entry commands
             Dim folderPattern
-            For Each folderPattern In enterCommands.Keys
+            For Each folderPattern In enterCommands
                 DebugOutput 2, "Running entry command for path: " & folderPattern
                 DebugOutput 2, "   Entry command: " & enterCommands(folderPattern)
                 
