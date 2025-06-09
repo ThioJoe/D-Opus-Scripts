@@ -47,7 +47,7 @@ Function OnInit(initData)
 
     ' Debug logging option
     config_desc("DebugLevel") = "Set the level of debug output"
-    config.DebugLevel = DOpus.Create.Vector(0, "0 - Off (Default)", "1 - Info", "2 - Verbose", "3 - Debug", "4 - Debug Extra")
+    config.DebugLevel = DOpus.Create.Vector(0, "0 - Off (Default)", "1 - Warn", "2 - Verbose", "3 - Debug", "4 - Debug Extra")
     config_groups("DebugLevel") = "2 - Options"
     
     ' Disable variable cache for debugging
@@ -64,7 +64,7 @@ Sub DebugOutput(level, message)
         Dim levelString
         Select Case level
             Case 1
-                levelString = "[Info]       | "
+                levelString = "[Warn]       | "
             Case 2
                 levelString = "[Verbose]    | "
             Case 3
@@ -235,7 +235,7 @@ Function ParseFolderCommandPairs()
     
     ' Cache the result
     Script.vars.Set "CachedFolderCommandPairs", resolvedResult
-    DebugOutput 1, "Commands parsed and cached. Total pairs: " & resolvedResult.Count
+    DebugOutput 2, "Commands parsed and cached. Total pairs: " & resolvedResult.Count
     
     Set ParseFolderCommandPairs = resolvedResult
 
@@ -493,15 +493,22 @@ Function OnActivateTab(activateTabData)
     
     Dim oldPath, newPath
    
-    If Not IsBlank(activateTabData.oldtab) Then
-        If Not IsBlank(activateTabData.oldtab.path) Then
-            oldPath = TerminatePath(activateTabData.oldtab.Path)
-        Else
-            oldPath = ""
+   ' ------- Get Old Path With Error Handling -------
+    ' Apparently sometimes trying to access .path doesn't work for some reason even if the tab is valid, so we handle that with error checking
+    oldPath = ""
+    On Error Resume Next
+    Dim tempPath: tempPath = activateTabData.oldtab.path
+    If Err.Number = 0 Then
+        ' Success. Now check if the path string itself is blank.
+        If Not IsBlank(tempPath) Then
+            oldPath = TerminatePath(tempPath)
         End If
     Else
-        oldPath = ""
+        DebugOutput 1, "A non-critical error occurred while accessing oldtab.path. Ignoring. (Details: " & Err.Description & ")"
     End If
+    Err.Clear
+    On Error GoTo 0
+    ' -----------------------------------------------
     
     If Not activateTabData.newtab Is Nothing Then
         newPath = TerminatePath(activateTabData.newtab.Path)
@@ -529,7 +536,7 @@ Function OnActivateTab(activateTabData)
 End Function
 
 Function OnScriptConfigChange(scriptConfigChangeData)
-    DebugOutput 1, "OnScriptConfigChange triggered - Config has changed, resetting script cache"
+    DebugOutput 2, "OnScriptConfigChange triggered - Config has changed, resetting script cache"
     
     ' Clear the cached folder command pairs to force re-parsing on next folder change
     If Script.vars.Exists("CachedFolderCommandPairs") Then
