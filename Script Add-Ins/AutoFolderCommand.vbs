@@ -244,7 +244,7 @@ End Function
 
 Function TerminatePath(p)
     TerminatePath = p
-    DebugOutput 3, "  Running TerminatePath function for path: " & p
+    DebugOutput 4, "  Running TerminatePath function for path: " & p
 
     If (Len(TerminatePath) > 0) Then
         Dim c, pathType, slashToUse
@@ -269,7 +269,7 @@ Function TerminatePath(p)
         End If
     End If
 
-    DebugOutput 3, "   > TerminatePath: Before = " & p & ", After = " & TerminatePath
+    DebugOutput 4, "   > TerminatePath: Before = " & p & ", After = " & TerminatePath
 End Function
 
 Sub ProcessFolderChangeCommands(oldPath, newPath, oldSourceTab, newSourceTab)
@@ -364,12 +364,20 @@ Sub ProcessFolderChangeCommands(oldPath, newPath, oldSourceTab, newSourceTab)
 
     ' Execute leave commands
     If leaveCommands.Count > 0 Then
-        
-        
         Set leaveCmd = DOpus.Create.Command
 
+        ' Try to set the source tab specifically to the old tab for leave commands
+        ' Sometimes the SetSourceTab fails for some unknown reason even if the tab is valid, so we handle that with error checking
+        ' It continues anyway since the command will still run without it, but it may not have the correct source tab
+        ' But it's rare enough that we can probably ignore it
         If Not IsBlank(oldSourceTab) Then
+            On Error Resume Next
             leaveCmd.SetSourceTab oldSourceTab
+            If Err.Number <> 0 Then
+                DebugOutput 1, "A non-critical error occurred in SetSourceTab. Ignoring. (Details: " & Err.Description & ")"
+                Err.Clear
+            End If
+            On Error GoTo 0 ' Reset error handling
         Else
             DebugOutput 3, "No previous source tab (previous tab may have closed). Using new tab instead."
         End If
@@ -383,14 +391,18 @@ Sub ProcessFolderChangeCommands(oldPath, newPath, oldSourceTab, newSourceTab)
         Next
     End If
     
-    ' Check if enterCommands is not empty
+    ' Execute entry commands
     If enterCommands.Count > 0 Then
-        ' Execute entry commands
-        
         Set enterCmd = DOpus.Create.Command
 
         If Not IsBlank(newSourceTab) Then
+            On Error Resume Next
             enterCmd.SetSourceTab newSourceTab
+            If Err.Number <> 0 Then
+                DebugOutput 1, "A non-critical error occurred in SetSourceTab. Ignoring. (Details: " & Err.Description & ")"
+                Err.Clear
+            End If
+            On Error GoTo 0 ' Reset error handling
         End If
 
         For Each folderPattern In enterCommands
@@ -480,12 +492,7 @@ Function OnActivateTab(activateTabData)
     End If
     
     Dim oldPath, newPath
-
-    DOpus.Output "Type is " & TypeName(activateTabData)
-    DOpus.Output "DOpusType is " & DOpus.TypeOf(activateTabData)
-    DOpus.Output "oldtab Type is " & TypeName(activateTabData.oldtab)
-    DOpus.Output "oldtab DOpusType is " & DOpus.TypeOf(activateTabData.oldtab)
-    
+   
     If Not IsBlank(activateTabData.oldtab) Then
         If Not IsBlank(activateTabData.oldtab.path) Then
             oldPath = TerminatePath(activateTabData.oldtab.Path)
