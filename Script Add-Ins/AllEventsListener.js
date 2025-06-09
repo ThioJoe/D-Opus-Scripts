@@ -1,3 +1,6 @@
+///<reference path="./_DOpusDefinitions.d.ts" />
+// @ts-check
+
 // All Events Logger for Directory Opus
 //
 // This script implements every possible scripting event and logs the contents of the event's data object to the Script Log when the event is triggered.
@@ -45,7 +48,7 @@ function OnInit(initData) {
 
     initData.config_groups = configGroups;
     initData.config_desc = configDesc;
-    
+
 }
 
 // ======== HELPER FUNCTIONS ========
@@ -166,7 +169,7 @@ function ShouldLogEvent(eventName) {
 
 // Helper function to create or load a cached list of events from the user's configuration.
 // Converts the list to a vector for easy access, stores it in Script.vars.
-function CreatCachedLists(){
+function CreatCachedLists() {
     var listenOnlyVarName = "ListenEventList";
     var excludeVarName = "ExcludeEventList";
 
@@ -199,8 +202,23 @@ function CreatCachedLists(){
     }
 
     // Store the lists in Script.vars for later use
-    Script.vars.set(listenOnlyVarName) = listenEventList;
-    Script.vars.set(excludeVarName) = excludeEventList;
+    Script.vars.Set(listenOnlyVarName, listenEventList);
+    Script.vars.Set(excludeVarName, excludeEventList);
+
+    // DEBUG TESTING
+    // var testVarListenOnly = Script.vars.get(listenOnlyVarName);
+    // var testVarExclude = Script.vars.get(excludeVarName);
+    // var testLookupTrue = testVarExclude.exists("OnActivateTab");
+    // var testLookupFalse = testVarListenOnly.exists("FakeName");
+
+    // DOpus.Output("TESTING - Listen Only Type: " + DOpus.TypeOf(testVarListenOnly));
+    // DOpus.Output("TESTING - Exclude Type: " + DOpus.TypeOf(testVarExclude));
+
+    // DOpus.Output("TESTING - Listen Event List: " + testVarListenOnly(0));
+    // DOpus.Output("TESTING - Exclude Event List: " + testVarExclude(0));
+
+    // DOpus.Output("TESTING - TestLookupTrue: " + testLookupTrue);
+    // DOpus.Output("TESTING - TestLookupFalse: " + testLookupFalse);
 }
 
 
