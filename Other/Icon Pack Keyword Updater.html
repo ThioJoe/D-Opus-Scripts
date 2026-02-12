@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directory Opus Icon Keyword Syncer</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --border-color: #333;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-color: #bb86fc;
+            --accent-hover: #9955e8;
+            --success-color: #03dac6;
+            --error-color: #cf6679;
+            --drag-overlay: rgba(187, 134, 252, 0.1);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* ── Drop Zone ── */
+        .drop-zone {
+            background-color: var(--surface-color);
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .drop-zone.expanded {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .drop-zone.drag-over {
+            border-color: var(--accent-color);
+            background-color: var(--drag-overlay);
+        }
+
+        .drop-zone input[type="file"] {
+            display: none;
+        }
+
+        .drop-zone-content {
+            pointer-events: none;
+        }
+
+        .drop-zone-icon {
+            font-size: 42px;
+            margin-bottom: 12px;
+        }
+
+        .drop-zone-label {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+        }
+
+        .drop-zone-sublabel {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .file-count {
+            color: var(--accent-color);
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 0.85rem;
+        }
+
+        /* ── AI Workflow Bar (File 1 only) ── */
+        .ai-workflow {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 14px;
+            padding: 10px 14px;
+            background-color: rgba(255, 152, 0, 0.08);
+            border: 1px solid rgba(255, 152, 0, 0.2);
+            border-radius: 6px;
+            align-items: center;
+        }
+
+        .ai-workflow-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .ai-workflow-label strong {
+            color: var(--text-primary);
+        }
+
+        .ai-btn {
+            background-color: #ff9800;
+            color: #000;
+            padding: 6px 16px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s;
+        }
+
+        .ai-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .ai-btn:not(:disabled):hover {
+            opacity: 0.85;
+        }
+
+        .apply-btn {
+            background-color: #e040fb;
+            color: #000;
+            padding: 6px 16px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s;
+        }
+
+        .apply-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .apply-btn:not(:disabled):hover {
+            opacity: 0.85;
+        }
+
+        /* ── File Cards Row ── */
+        .files-container {
+            display: flex;
+            gap: 14px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            min-height: 0;
+            padding-bottom: 4px;
+        }
+
+        .files-container.has-files {
+            flex: 1;
+        }
+
+        .file-card {
+            min-width: 420px;
+            max-width: 600px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .file-card.primary {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 1px var(--accent-color), 0 0 20px rgba(187, 134, 252, 0.15);
+        }
+
+        .file-header {
+            padding: 10px 14px;
+            background-color: #252526;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .file-card.primary .file-title::before {
+            content: '★ ';
+            color: var(--accent-color);
+        }
+
+        .star-button {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0 4px 0 0;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .file-header:hover .star-button {
+            opacity: 1;
+        }
+
+        .file-card.primary .star-button {
+            display: none;
+        }
+
+        .star-button:hover {
+            color: var(--accent-color);
+            transform: scale(1.2);
+        }
+
+        .file-count {
+            font-size: 0.78rem;
+            color: var(--success-color);
+            flex-shrink: 0;
+        }
+
+        .file-actions {
+            padding: 8px 14px;
+            background-color: #1a1a1a;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 8px;
+        }
+
+        .file-actions .primary {
+            margin-right: auto;
+        }
+
+        .file-textarea {
+            flex: 1;
+            width: 100%;
+            background-color: var(--surface-color);
+            color: #d4d4d4;
+            border: none;
+            resize: none;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            box-sizing: border-box;
+            outline: none;
+            line-height: 1.5;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+            tab-size: 2;
+            -moz-tab-size: 2;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Buttons */
+        button {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        button.secondary {
+            background-color: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            font-size: 0.78rem;
+        }
+
+        button.secondary:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+
+        button.primary {
+            background-color: var(--success-color);
+            color: #000;
+            font-weight: 700;
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .status-message {
+            margin-left: 15px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 40px;
+        }
+
+        /* ── Info Banner ── */
+        .info-banner {
+            background: linear-gradient(135deg, rgba(33, 150, 243, 0.12) 0%, rgba(33, 150, 243, 0.06) 100%);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .info-banner-title {
+            font-weight: 600;
+            color: #42a5f5;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-banner-content {
+            color: var(--text-secondary);
+            margin-left: 28px;
+        }
+
+        .info-banner-content ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .info-banner-content li {
+            margin: 4px 0;
+        }
+
+        .info-banner-content strong {
+            color: var(--text-primary);
+        }
+
+        /* ── Info Icon & Modal ── */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: rgba(33, 150, 243, 0.2);
+            color: #42a5f5;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: help;
+            border: 1px solid rgba(33, 150, 243, 0.4);
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .info-icon:hover {
+            background-color: rgba(33, 150, 243, 0.3);
+            transform: scale(1.1);
+        }
+
+        .info-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .info-modal.show {
+            display: flex;
+        }
+
+        .info-modal-content {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .info-modal-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #42a5f5;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-modal-body {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .info-modal-body strong {
+            color: var(--text-primary);
+        }
+
+        .info-modal-body ul {
+            margin: 12px 0;
+            padding-left: 20px;
+        }
+
+        .info-modal-body li {
+            margin: 8px 0;
+        }
+
+        .info-modal-body .platform {
+            background-color: rgba(187, 134, 252, 0.15);
+            padding: 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .info-modal-close {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: 16px;
+            width: 100%;
+        }
+
+        .info-modal-close:hover {
+            opacity: 0.9;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>Directory Opus Iconset Keyword Syncer <span style="font-size: 0.7em; color: var(--text-secondary); font-weight: 400;" id="versionText"></span></h1>
+        <div>
+            <span id="globalStatus" class="status-message"></span>
+        </div>
+    </header>
+
+    <!-- Info Banner -->
+    <div class="info-banner">
+        <div class="info-banner-title">
+            <span>ℹ️</span>
+            <span>About This Tool</span>
+        </div>
+        <div class="info-banner-content">
+            This tool helps update Directory Opus icon sets with keyword properties for better searchability.
+            <ul>
+                <li><strong>1. Load Icon Set (.dis) Files:</strong> Drag in the .dis files to automatically import, unzip, and parse them.</li>
+                <li><strong>2. Create Updated Keywords:</strong> Click the "Copy for AI" button to copy a pre-made prompt, to use with your AI of choice, and have it generate keywords. (Click info icon next to button for further instruction.)</li>
+                <li><strong>3. Apply Updated Keywords:</strong> Copy the result given by the AI, then click "Apply AI Result" to apply the updated keywords to the XML. It will update them for all sizes.</li>
+                <li><strong>4. Multi-File Sync:</strong> Load multiple icon sets and sync keywords across all of them at once. Icons with identical names across files will have all the keywords from each merged. Good for icons with multiple themes but the same icons.</li>
+                
+            </ul>
+        </div>
+    </div>
+
+    <!-- Multi-File Drop Zone -->
+    <div class="drop-zone expanded" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept=".xml,.dis" multiple>
+        <div class="drop-zone-content">
+            <div class="drop-zone-icon">📂</div>
+            <div class="drop-zone-label">Drag & drop .dis or .xml files here (or click to browse)</div>
+            <div class="drop-zone-sublabel">Keywords will sync across all loaded files</div>
+            <div class="file-count" id="fileCount"></div>
+        </div>
+    </div>
+
+    <!-- AI Workflow (File 1 only) -->
+    <div class="ai-workflow" id="aiWorkflow" style="display: none;">
+        <span class="ai-workflow-label"><strong>Optional AI Workflow</strong> (uses first file):</span>
+        <button id="btnCopyForAI" class="ai-btn" onclick="copyFilesForAI()" disabled>Copy for AI</button>
+        <button id="btnApplyFromClipboard" class="apply-btn" onclick="applyFromClipboard()" disabled>Apply AI Result</button>
+        <span class="info-icon" onclick="showInfoModal()" title="How to paste in AI chatbots">i</span>
+    </div>
+
+    <!-- Info Modal -->
+    <div class="info-modal" id="infoModal" onclick="hideInfoModal(event)">
+        <div class="info-modal-content" onclick="event.stopPropagation()">
+            <div class="info-modal-header">
+                <span>💡</span>
+                <span>How to Paste in AI Chatbots</span>
+            </div>
+            <div class="info-modal-body">
+                <p>After clicking <strong>Copy for AI</strong>, the tool copies both the icon image and XML text to your clipboard, as well as instructions for the AI.</p>
+                
+                <div class="platform">
+                    <strong>ChatGPT:</strong><br>
+                    Simply press <strong>Ctrl+V</strong> in the prompt field. This will automatically attach the image as a file and paste the text/prompt.
+                </div>
+                
+                <div class="platform">
+                    <strong>Gemini:</strong><br>
+                    1. Press <strong>Ctrl+V</strong> to attach the image<br>
+                    2. Then press <strong>Ctrl+Shift+V</strong> to paste the text/prompt
+                </div>
+
+                <p style="margin-top: 12px; font-size: 0.85rem; opacity: 0.8;">
+                    The AI will analyze the icon image and use the XML metadata to generate appropriate keywords.
+                </p>
+                
+                <p><strong>After the AI responds:</strong><br>
+                    1. Copy the entire updated <strong>&lt;set ...&gt;...&lt;/set&gt;</strong> block from the AI's code box<br>
+                    2. Click the <strong>Apply AI Result</strong> button to apply the keywords
+                </p>
+            </div>
+            <button class="info-modal-close" onclick="hideInfoModal()">Got it!</button>
+        </div>
+    </div>
+
+    <!-- File Cards Container -->
+    <div class="files-container" id="filesContainer" style="display: none;"></div>
+
+    <script>
+        const VERSION = "Last Updated: Feb 11, 2026";
+        const MAX_FILES = 10;
+        const AI_PROMPT_TEXT = `Given this icon set and accompanying XML metadata file for it, I want you to add a new attribute for each icon called "keywords", which is a single string with keywords separated by semicolons.
+The idea is when the icons are searched for, in addition to just the name, it will also match any keywords. So they should be descriptive. So like "cli" could have keywords "terminal;console;command" stuff like that. It can be conceptual, synonyms, or descriptions of the icon itself, like if it has a pencil in it "pencil" could also be a keyword regardless of the original meaning.
+- Note: I've just attached the largest set, so ignore the small ones, ONLY process the largest dimension set and leave the small sets untouched in the XML. I'll use a separate tool to sync the attributes so it's not necessary.
+- Do NOT use functions or code to do this, you should update it yourself.
+- ONLY output the updated set, starting with the opening <set ... > tag of the updated set and ending with the respective </set> tag inclusive.
+- Keep the order of the existing attributes and put the new keywords attribute last for each.
+- ALWAYS output to a code box for easier copying.`;
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const filesContainer = document.getElementById('filesContainer');
+        const statusLabel = document.getElementById('globalStatus');
+        const fileCountLabel = document.getElementById('fileCount');
+        const aiWorkflow = document.getElementById('aiWorkflow');
+        const btnCopyForAI = document.getElementById('btnCopyForAI');
+        const btnApplyFromClipboard = document.getElementById('btnApplyFromClipboard');
+
+        let filesData = []; // Array of file data objects
+
+        // Display version
+        document.getElementById('versionText').textContent = VERSION;
+
+        // Drop zone handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (fileInput.files.length) {
+                handleFiles(fileInput.files);
+            }
+        });
+
+        function handleFiles(fileList) {
+            const filesToAdd = Array.from(fileList).slice(0, MAX_FILES - filesData.length);
+            if (filesToAdd.length === 0) {
+                statusLabel.textContent = `Maximum ${MAX_FILES} files allowed`;
+                statusLabel.style.color = 'var(--error-color)';
+                return;
+            }
+            
+            filesToAdd.forEach(file => handleFile(file));
+        }
+
+        function handleFile(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            
+            if (extension === 'dis') {
+                handleDisFile(file);
+            } else {
+                handleXmlFile(file);
+            }
+        }
+
+        function handleXmlFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = {
+                    name: file.name,
+                    rawContent: e.target.result,
+                    outputString: "",
+                    isDis: false,
+                    disFileName: null,
+                    zipInstance: null,
+                    xmlFileNameInZip: null,
+                    hasChanges: false,
+                    hadBareAmpersands: false
+                };
+                
+                filesData.push(data);
+                updateUI();
+                processXMLs();
+            };
+            reader.readAsText(file);
+        }
+
+        async function handleDisFile(file) {
+            try {
+                statusLabel.textContent = `Extracting ${file.name}...`;
+                statusLabel.style.color = 'var(--text-secondary)';
+
+                const arrayBuffer = await file.arrayBuffer();
+                const zip = await JSZip.loadAsync(arrayBuffer);
+                
+                // Find the XML file inside the zip
+                let xmlFileName = null;
+                let xmlContent = null;
+                
+                let xmlEncoding = 'utf-8';
+                for (const [filename, zipEntry] of Object.entries(zip.files)) {
+                    if (!zipEntry.dir && filename.toLowerCase().endsWith('.xml')) {
+                        xmlFileName = filename;
+                        const rawBytes = await zipEntry.async('uint8array');
+                        const decoded = decodeXmlBytes(rawBytes);
+                        xmlContent = decoded.text;
+                        xmlEncoding = decoded.encoding;
+                        break;
+                    }
+                }
+                
+                if (!xmlFileName || !xmlContent) {
+                    throw new Error(`No XML file found inside ${file.name}`);
+                }
+
+                const data = {
+                    name: file.name,
+                    rawContent: xmlContent,
+                    outputString: "",
+                    isDis: true,
+                    disFileName: file.name,
+                    zipInstance: zip,
+                    xmlFileNameInZip: xmlFileName,
+                    xmlEncoding: xmlEncoding,
+                    hasChanges: false,
+                    hadBareAmpersands: false
+                };
+                
+                filesData.push(data);
+                updateUI();
+                processXMLs();
+
+            } catch (err) {
+                statusLabel.textContent = `Error reading ${file.name}: ${err.message}`;
+                statusLabel.style.color = 'var(--error-color)';
+                console.error(err);
+            }
+        }
+
+        function updateUI() {
+            // Update file count
+            fileCountLabel.textContent = filesData.length > 0 ? `${filesData.length} file${filesData.length > 1 ? 's' : ''} loaded` : '';
+            
+            // Toggle drop zone expanded state
+            if (filesData.length === 0) {
+                dropZone.classList.add('expanded');
+                filesContainer.style.display = 'none';
+                filesContainer.classList.remove('has-files');
+            } else {
+                dropZone.classList.remove('expanded');
+                filesContainer.style.display = '';
+                filesContainer.classList.add('has-files');
+            }
+            
+            // Show AI workflow if at least one file is loaded
+            if (filesData.length > 0) {
+                aiWorkflow.style.display = 'flex';
+                // Enable/disable AI buttons based on first file
+                btnCopyForAI.disabled = !filesData[0].isDis;
+                btnApplyFromClipboard.disabled = false;
+            } else {
+                aiWorkflow.style.display = 'none';
+            }
+            
+            // Render file cards
+            renderFileCards();
+        }
+
+        function renderFileCards() {
+            filesContainer.innerHTML = '';
+            
+            if (filesData.length === 0) {
+                filesContainer.innerHTML = '';
+                return;
+            }
+            
+            filesData.forEach((fileData, index) => {
+                const card = createFileCard(fileData, index);
+                filesContainer.appendChild(card);
+            });
+        }
+
+        function createFileCard(fileData, index) {
+            const card = document.createElement('div');
+            card.className = 'file-card' + (index === 0 ? ' primary' : '');
+            card.id = `fileCard${index}`;
+            
+            const displayName = fileData.isDis ? `${fileData.disFileName}` : fileData.name;
+            
+            card.innerHTML = `
+                <div class="file-header">
+                    <button class="star-button" onclick="setAsPrimary(${index})" title="Set as main file">☆</button>
+                    <span class="file-title" title="${displayName}">${displayName}</span>
+                    <span class="file-count" id="fileCount${index}"></span>
+                </div>
+                <div class="file-actions">
+                    <button class="primary" id="btnDownloadDis${index}" onclick="downloadDis(${index})" ${fileData.isDis ? '' : 'disabled'}>Download Updated .dis</button>
+                    <button class="secondary" onclick="copyToClipboard(${index})">Copy XML</button>
+                    <button class="secondary" onclick="downloadFile(${index})">Download XML</button>
+                </div>
+                <textarea class="file-textarea" id="output${index}" readonly placeholder="Processed XML will appear here..."></textarea>
+            `;
+            
+            return card;
+        }
+
+        function extractKeywords(xmlDoc, globalKeywordsMap) {
+            const icons = xmlDoc.querySelectorAll('icon');
+            icons.forEach(icon => {
+                const name = icon.getAttribute('name');
+                const keywords = icon.getAttribute('keywords');
+                if (name && keywords && keywords.trim() !== "") {
+                    if (!globalKeywordsMap.has(name)) {
+                        globalKeywordsMap.set(name, new Set());
+                    }
+                    const keywordsSet = globalKeywordsMap.get(name);
+                    keywords.split(';').forEach(kw => {
+                        const trimmed = kw.trim();
+                        if (trimmed) keywordsSet.add(trimmed);
+                    });
+                }
+            });
+        }
+
+        function applyKeywords(xmlDoc, globalKeywordsMap) {
+            const icons = xmlDoc.querySelectorAll('icon');
+            let updatedCount = 0;
+            
+            icons.forEach(icon => {
+                const name = icon.getAttribute('name');
+                const currentKeywords = icon.getAttribute('keywords') || "";
+                
+                if (name && globalKeywordsMap.has(name)) {
+                    const mergedSet = new Set();
+                    
+                    // Add existing keywords on this icon first
+                    currentKeywords.split(';').forEach(kw => {
+                        const trimmed = kw.trim();
+                        if (trimmed) mergedSet.add(trimmed);
+                    });
+                    
+                    // Add global keywords
+                    globalKeywordsMap.get(name).forEach(kw => mergedSet.add(kw));
+                    
+                    const newKeywordsString = Array.from(mergedSet).join(';');
+                    
+                    if (currentKeywords !== newKeywordsString) {
+                        icon.setAttribute('keywords', newKeywordsString);
+                        updatedCount++;
+                    }
+                }
+            });
+            return updatedCount;
+        }
+
+        // Detect BOM / encoding from raw bytes and decode to a JS string.
+        function decodeXmlBytes(uint8Array) {
+            // UTF-16 LE BOM: FF FE
+            if (uint8Array.length >= 2 && uint8Array[0] === 0xFF && uint8Array[1] === 0xFE) {
+                return { text: new TextDecoder('utf-16le').decode(uint8Array), encoding: 'utf-16le' };
+            }
+            // UTF-16 BE BOM: FE FF
+            if (uint8Array.length >= 2 && uint8Array[0] === 0xFE && uint8Array[1] === 0xFF) {
+                return { text: new TextDecoder('utf-16be').decode(uint8Array), encoding: 'utf-16be' };
+            }
+            // UTF-8 (with or without BOM)
+            return { text: new TextDecoder('utf-8').decode(uint8Array), encoding: 'utf-8' };
+        }
+
+        // Encode a JS string back to bytes in the given encoding.
+        function encodeXmlString(str, encoding) {
+            if (encoding === 'utf-16le') {
+                // TextEncoder only supports UTF-8, so we manually build UTF-16 LE with BOM
+                const bom = new Uint8Array([0xFF, 0xFE]);
+                const buf = new ArrayBuffer(str.length * 2);
+                const view = new Uint16Array(buf);
+                for (let i = 0; i < str.length; i++) {
+                    view[i] = str.charCodeAt(i);
+                }
+                const body = new Uint8Array(buf);
+                const result = new Uint8Array(bom.length + body.length);
+                result.set(bom, 0);
+                result.set(body, bom.length);
+                return result;
+            }
+            if (encoding === 'utf-16be') {
+                const bom = new Uint8Array([0xFE, 0xFF]);
+                const buf = new ArrayBuffer(str.length * 2);
+                const dataView = new DataView(buf);
+                for (let i = 0; i < str.length; i++) {
+                    dataView.setUint16(i * 2, str.charCodeAt(i), false); // big-endian
+                }
+                const body = new Uint8Array(buf);
+                const result = new Uint8Array(bom.length + body.length);
+                result.set(bom, 0);
+                result.set(body, bom.length);
+                return result;
+            }
+            // UTF-8
+            return new TextEncoder().encode(str);
+        }
+
+        // Try to parse XML normally first; if that fails, escape bare ampersands and retry.
+        // Returns { xmlDoc, wasEscaped }.
+        function parseXmlWithFallback(rawContent) {
+            const parser = new DOMParser();
+
+            // First attempt: parse as-is
+            let xmlDoc = parser.parseFromString(rawContent, "text/xml");
+            if (!xmlDoc.querySelector("parsererror")) {
+                return { xmlDoc, wasEscaped: false };
+            }
+            console.warn("XML parse attempt 1 failed:", xmlDoc.querySelector("parsererror").textContent);
+
+            // Second attempt: escape bare ampersands that are not already part of
+            // a recognised XML entity (&amp; &lt; &gt; &quot; &apos; &#NNN; &#xHHH;)
+            const sanitized = rawContent.replace(
+                /&(?!(?:apos|quot|[gl]t|amp|#(?:x[0-9a-fA-F]+|\d+));)/g,
+                '&amp;'
+            );
+            xmlDoc = parser.parseFromString(sanitized, "text/xml");
+            if (xmlDoc.querySelector("parsererror")) {
+                console.error("XML parse attempt 2 (after ampersand escaping) also failed:",
+                    xmlDoc.querySelector("parsererror").textContent);
+                // Log a snippet around the first problematic area to help diagnose
+                console.error("First 500 chars of sanitized content:", sanitized.substring(0, 500));
+            }
+            return { xmlDoc, wasEscaped: true };
+        }
+
+        function processSingleFile(fileData, globalKeywordsMap, index) {
+            const { xmlDoc, wasEscaped } = parseXmlWithFallback(fileData.rawContent);
+
+            if (xmlDoc.querySelector("parsererror")) {
+                throw new Error(`Invalid XML structure in File ${index + 1}`);
+            }
+
+            fileData.hadBareAmpersands = wasEscaped;
+
+            const updatedCount = applyKeywords(xmlDoc, globalKeywordsMap);
+            
+            const serializer = new XMLSerializer();
+            let outputString = serializer.serializeToString(xmlDoc);
+
+            // Only unescape &amp; → & when we had to escape bare ampersands to
+            // parse the file, so we preserve the original formatting on output.
+            if (wasEscaped) {
+                outputString = outputString.replace(/&amp;/g, '&');
+            }
+
+            // Add newline after XML declaration to put iconset tag on its own line
+            outputString = outputString.replace('?><', '?>\n<');
+            
+            fileData.outputString = outputString;
+            return updatedCount;
+        }
+
+        function processXMLs() {
+            if (filesData.length === 0) return;
+
+            try {
+                const globalKeywordsMap = new Map();
+
+                // Pass 1: Extract keywords from all files additively
+                filesData.forEach(fileData => {
+                    const { xmlDoc } = parseXmlWithFallback(fileData.rawContent);
+                    if (!xmlDoc.querySelector("parsererror")) extractKeywords(xmlDoc, globalKeywordsMap);
+                });
+
+                // Pass 2: Apply and Serialize all files
+                let totalUpdated = 0;
+                filesData.forEach((fileData, index) => {
+                    const updated = processSingleFile(fileData, globalKeywordsMap, index);
+                    fileData.hasChanges = (updated > 0);
+                    const outputTextarea = document.getElementById(`output${index}`);
+                    if (outputTextarea) {
+                        outputTextarea.value = fileData.outputString;
+                    }
+                    const countSpan = document.getElementById(`fileCount${index}`);
+                    if (countSpan) {
+                        countSpan.textContent = `${updated} icons updated`;
+                    }
+                    totalUpdated += updated;
+                });
+
+                statusLabel.textContent = `Success: ${totalUpdated} total icons updated across ${filesData.length} file${filesData.length > 1 ? 's' : ''}`;
+                statusLabel.style.color = "var(--success-color)";
+                
+                // Update download button states based on whether content changed
+                updateDownloadButtonStates();
+
+            } catch (err) {
+                statusLabel.textContent = "Error processing files: " + err.message;
+                statusLabel.style.color = "var(--error-color)";
+                console.error(err);
+            }
+        }
+
+        function updateDownloadButtonStates() {
+            filesData.forEach((fileData, index) => {
+                const button = document.getElementById(`btnDownloadDis${index}`);
+                if (button && fileData.isDis) {
+                    // Disable button if no actual changes were made to the XML content
+                    button.disabled = !fileData.hasChanges;
+                }
+            });
+        }
+
+
+        function downloadFile(index) {
+            const data = filesData[index];
+            if (!data || !data.outputString) return;
+            
+            const baseName = data.isDis ? data.xmlFileNameInZip : data.name;
+            const dlName = baseName.replace('.xml', '') + '_Synced.xml';
+            const blob = new Blob([data.outputString], { type: 'text/xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = dlName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function downloadDis(index) {
+            const data = filesData[index];
+            if (!data || !data.outputString || !data.isDis || !data.zipInstance) return;
+
+            try {
+                statusLabel.textContent = `Packaging ${data.disFileName}...`;
+                statusLabel.style.color = 'var(--text-secondary)';
+
+                // Clone the original zip and replace the XML with the updated version
+                const newZip = new JSZip();
+                
+                for (const [filename, zipEntry] of Object.entries(data.zipInstance.files)) {
+                    if (zipEntry.dir) {
+                        newZip.folder(filename);
+                    } else if (filename === data.xmlFileNameInZip) {
+                        // Replace with updated XML, re-encoded to the original encoding
+                        const encodedBytes = encodeXmlString(data.outputString, data.xmlEncoding || 'utf-8');
+                        newZip.file(filename, encodedBytes);
+                    } else {
+                        // Copy all other files (images, etc.) as-is
+                        const content = await zipEntry.async('uint8array');
+                        newZip.file(filename, content);
+                    }
+                }
+
+                const blob = await newZip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = data.disFileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                statusLabel.textContent = `Downloaded updated ${data.disFileName}`;
+                statusLabel.style.color = 'var(--success-color)';
+
+            } catch (err) {
+                statusLabel.textContent = `Error packaging .dis: ${err.message}`;
+                statusLabel.style.color = 'var(--error-color)';
+                console.error(err);
+            }
+        }
+
+        async function copyFilesForAI() {
+            const data = filesData[0];
+            if (!data || !data.isDis || !data.zipInstance) {
+                statusLabel.textContent = 'Load a .dis file first to use this feature';
+                statusLabel.style.color = 'var(--error-color)';
+                return;
+            }
+
+            try {
+                statusLabel.textContent = 'Extracting largest image from archive...';
+                statusLabel.style.color = 'var(--text-secondary)';
+
+                const imageExtensions = ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp'];
+
+                // Find and extract the largest image file from the zip
+                let largestImage = null;
+                let largestSize = 0;
+
+                for (const [filename, zipEntry] of Object.entries(data.zipInstance.files)) {
+                    if (zipEntry.dir) continue;
+                    const dotIndex = filename.lastIndexOf('.');
+                    if (dotIndex < 0) continue;
+                    const ext = filename.substring(dotIndex).toLowerCase();
+                    if (!imageExtensions.includes(ext)) continue;
+
+                    const imageData = await zipEntry.async('uint8array');
+                    if (imageData.length > largestSize) {
+                        largestSize = imageData.length;
+                        largestImage = { filename, data: imageData, ext };
+                    }
+                }
+
+                if (!largestImage) {
+                    statusLabel.textContent = 'No image files found in the .dis archive';
+                    statusLabel.style.color = 'var(--error-color)';
+                    return;
+                }
+
+                // Convert image to PNG blob — Clipboard API only supports image/png for file-like writes
+                const pngBlob = await convertToPngBlob(largestImage.data, largestImage.ext);
+
+                // Build the combined text: prompt + separator + XML
+                const separator = '-'.repeat(75);
+                const combinedText = AI_PROMPT_TEXT + '\n\n\n\n' + separator + '\n\n\n\n' + data.rawContent;
+                const xmlBlob = new Blob([combinedText], { type: 'text/plain' });
+
+                // Write to clipboard with both representations in one ClipboardItem:
+                // - image/png: AI chatbots detect this as a file in clipboardData.files → attaches as image
+                // - text/plain: Pastes as text in the prompt input field
+                // Note: Browser Clipboard API cannot write arbitrary file types (like .xml) as actual files.
+                // Only image/png is supported as a file-like clipboard entry. The XML is included as text.
+                const clipboardItem = new ClipboardItem({
+                    'image/png': pngBlob,
+                    'text/plain': xmlBlob
+                });
+
+                await navigator.clipboard.write([clipboardItem]);
+
+                const sizeKB = (largestSize / 1024).toFixed(1);
+                statusLabel.textContent = `Copied: ${largestImage.filename} (${sizeKB} KB) as image + XML as text. Paste in AI prompt — image attaches as file, XML pastes as text.`;
+                statusLabel.style.color = 'var(--success-color)';
+
+            } catch (err) {
+                if (err.name === 'NotAllowedError') {
+                    statusLabel.textContent = 'Clipboard access denied. Try clicking the button again, or check browser permissions.';
+                } else {
+                    statusLabel.textContent = `Clipboard error: ${err.message}`;
+                }
+                statusLabel.style.color = 'var(--error-color)';
+                console.error('Copy for AI failed:', err);
+            }
+        }
+
+        function convertToPngBlob(uint8Array, ext) {
+            return new Promise((resolve, reject) => {
+                const mimeMap = {
+                    '.png': 'image/png',
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                    '.gif': 'image/gif',
+                    '.webp': 'image/webp',
+                    '.bmp': 'image/bmp'
+                };
+                const mimeType = mimeMap[ext] || 'image/png';
+
+                const blob = new Blob([uint8Array], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const img = new Image();
+
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob(pngBlob => {
+                        URL.revokeObjectURL(url);
+                        if (pngBlob) {
+                            resolve(pngBlob);
+                        } else {
+                            reject(new Error('Canvas toBlob failed'));
+                        }
+                    }, 'image/png');
+                };
+
+                img.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    reject(new Error(`Failed to decode image (${ext})`));
+                };
+
+                img.src = url;
+            });
+        }
+
+        function copyToClipboard(index) {
+            const data = filesData[index];
+            if (!data || !data.outputString) return;
+            
+            navigator.clipboard.writeText(data.outputString).then(() => {
+                const originalText = statusLabel.textContent;
+                statusLabel.textContent = `Copied File ${index + 1} XML to clipboard!`;
+                setTimeout(() => {
+                    statusLabel.textContent = originalText;
+                }, 2000);
+            }).catch(() => {
+                const textarea = document.getElementById(`output${index}`);
+                if (textarea) textarea.select();
+                document.execCommand('copy');
+                const originalText = statusLabel.textContent;
+                statusLabel.textContent = `Copied File ${index + 1} XML to clipboard!`;
+                setTimeout(() => {
+                    statusLabel.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        async function applyFromClipboard() {
+            const data = filesData[0];
+            if (!data || !data.rawContent) {
+                statusLabel.textContent = 'No file loaded to apply to.';
+                statusLabel.style.color = 'var(--error-color)';
+                return;
+            }
+
+            try {
+                const clipboardText = await navigator.clipboard.readText();
+                if (!clipboardText || !clipboardText.trim()) {
+                    statusLabel.textContent = 'Clipboard is empty.';
+                    statusLabel.style.color = 'var(--error-color)';
+                    return;
+                }
+
+                // Strip leading/trailing whitespace from the clipboard content
+                const trimmedClip = clipboardText.trim();
+
+                // Extract the first <set ...> opening tag line from the clipboard content
+                // This regex captures the full <set ...> tag (just the opening tag, not its contents)
+                const clipSetOpenMatch = trimmedClip.match(/^(<set\b[^>]*>)/i);
+                if (!clipSetOpenMatch) {
+                    statusLabel.textContent = 'Clipboard does not start with a <set ...> tag. Expected the AI\'s updated set output.';
+                    statusLabel.style.color = 'var(--error-color)';
+                    return;
+                }
+                const clipSetOpenTag = clipSetOpenMatch[1];
+
+                // Normalize whitespace for comparison: collapse all whitespace to single space
+                const normalizeWS = (s) => s.replace(/\s+/g, ' ').trim();
+                const clipNormalized = normalizeWS(clipSetOpenTag);
+
+                // Find all <set ...>...</set> blocks in the file's rawContent
+                // Use regex to find each <set ...> opening tag and its position
+                const setBlockRegex = /<set\b[^>]*>[\s\S]*?<\/set>/gi;
+                let match;
+                let matchFound = false;
+                let newRawContent = data.rawContent;
+
+                while ((match = setBlockRegex.exec(data.rawContent)) !== null) {
+                    const fullBlock = match[0];
+                    // Extract just the opening <set ...> tag from this block
+                    const blockOpenMatch = fullBlock.match(/^(<set\b[^>]*>)/i);
+                    if (!blockOpenMatch) continue;
+
+                    const blockNormalized = normalizeWS(blockOpenMatch[1]);
+
+                    if (blockNormalized === clipNormalized) {
+                        // Found a match — replace this entire <set>...</set> block with the clipboard content
+                        newRawContent = newRawContent.substring(0, match.index) + trimmedClip + newRawContent.substring(match.index + fullBlock.length);
+                        matchFound = true;
+                        break;
+                    }
+                }
+
+                if (!matchFound) {
+                    statusLabel.textContent = 'No matching <set> found in the file. The clipboard\'s <set> tag doesn\'t match any set in this file.';
+                    statusLabel.style.color = 'var(--error-color)';
+                    return;
+                }
+
+                // Update the rawContent with the replaced set, then re-run the sync
+                data.rawContent = newRawContent;
+                processXMLs();
+
+                statusLabel.textContent = 'Applied updated set from clipboard to first file and re-synced keywords across all files.';
+                statusLabel.style.color = 'var(--success-color)';
+
+            } catch (err) {
+                if (err.name === 'NotAllowedError') {
+                    statusLabel.textContent = 'Clipboard read access denied. Check browser permissions.';
+                } else {
+                    statusLabel.textContent = `Error applying from clipboard: ${err.message}`;
+                }
+                statusLabel.style.color = 'var(--error-color)';
+                console.error('Apply from clipboard failed:', err);
+            }
+        }
+
+        function setAsPrimary(newPrimaryIndex) {
+            if (newPrimaryIndex === 0 || newPrimaryIndex >= filesData.length) return;
+            
+            // Move the selected file to the beginning of the array
+            const [selectedFile] = filesData.splice(newPrimaryIndex, 1);
+            filesData.unshift(selectedFile);
+            
+            // Re-render the UI
+            updateUI();
+            
+            // Re-process to ensure consistency
+            processXMLs();
+        }
+
+        // Info modal functions
+        function showInfoModal() {
+            const modal = document.getElementById('infoModal');
+            modal.classList.add('show');
+        }
+
+        function hideInfoModal(event) {
+            const modal = document.getElementById('infoModal');
+            // Only hide if clicking outside the content or on the close button
+            if (!event || event.target === modal || event.target.classList.contains('info-modal-close')) {
+                modal.classList.remove('show');
+            }
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                hideInfoModal();
+            }
+        });
+    </script>
+</body>
+</html>
